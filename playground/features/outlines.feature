@@ -86,7 +86,7 @@ Feature: Scenario Outlines
   Scenario Outline: No Examples at all (runs once with <n> unreplaced, so undefined)
     Given the number <n>
 
-  Scenario Outline: A wide Examples row (shown as Example #1 in the test tree)
+  Scenario Outline: A wide Examples row (every row of its table shown as Example #k in the test tree)
     Given the number <n>
     When I add them
     Then the result is <n>
@@ -94,3 +94,4 @@ Feature: Scenario Outlines
     Examples:
       | n | note                                                                  |
       | 7 | this row is long enough that its joined cell values exceed sixty chars |
+      | 8 | short                                                                 |

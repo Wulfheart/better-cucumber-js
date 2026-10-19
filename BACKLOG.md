@@ -11,4 +11,4 @@ Each item has a stable ID (`B` for bugs, `F` for features) to refer to it by, e.
 ## Feature ideas
 
 - [ ] **F1: Find Usages from step definitions.** Find Usages from a JS/TS step definition to the feature steps that use it, via a `referencesSearch` executor built on Gherkin's `CucumberUtil.findGherkinReferencesToElement`.
-- [ ] **F2: Consistent Example row names.** Rows are named after their cell values, or `Example #k` past 60 characters. If at least one row in an Examples table is too long and shown as `Example #k`, name every row in that table `Example #k`, so the table doesn't show a mix of cell values and numbers.
+- [x] **F2: Consistent Example row names.** Rows are named after their cell values, or `Example #k` past 60 characters. If at least one row in an Examples table is too long and shown as `Example #k`, name every row in that table `Example #k`, so the table doesn't show a mix of cell values and numbers.

@@ -201,7 +201,7 @@ class CucumberMessagesTranslatorTest {
 
     @Test
     fun outlineShapes() {
-        // Examples tables get a node only when an outline has several; rows too wide for a name become Example #k
+        // Examples tables get a node only when an outline has several; a row too wide for a name makes its whole table Example #k
         assertEquals(
             """
             Scenario Outlines @outlines.feature
@@ -228,8 +228,9 @@ class CucumberMessagesTranslatorTest {
                 3 @outlines.feature:77
                 4 @outlines.feature:78
               No Examples at all (runs once with <n> unreplaced, so undefined) @outlines.feature:86
-              A wide Examples row (shown as Example #1 in the test tree) @outlines.feature:89
+              A wide Examples row (every row of its table shown as Example #k in the test tree) @outlines.feature:89
                 Example #1 @outlines.feature:96
+                Example #2 @outlines.feature:97
             """.trimIndent(),
             tree("outlines.ndjson", suitesOnly = true),
         )
