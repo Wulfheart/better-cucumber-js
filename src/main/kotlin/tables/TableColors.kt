@@ -9,6 +9,9 @@ object TableColors {
     val CURRENT_COLUMN: TextAttributesKey =
         createTextAttributesKey("CUCUMBER_JS_TABLE_CURRENT_COLUMN", EditorColors.IDENTIFIER_UNDER_CARET_ATTRIBUTES)
 
+    val SUBSTITUTED_VALUE: TextAttributesKey =
+        createTextAttributesKey("CUCUMBER_JS_TABLE_SUBSTITUTED_VALUE", EditorColors.SEARCH_RESULT_ATTRIBUTES)
+
     val COLUMNS: List<TextAttributesKey> = (1..6).map { createTextAttributesKey("CUCUMBER_JS_TABLE_COLUMN_$it") }
 
     fun column(index: Int): TextAttributesKey = COLUMNS[index % COLUMNS.size]

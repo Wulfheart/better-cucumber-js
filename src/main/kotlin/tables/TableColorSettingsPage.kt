@@ -13,7 +13,8 @@ import javax.swing.Icon
 
 class TableColorSettingsPage : ColorSettingsPage {
     private val tags: Map<String, TextAttributesKey> =
-        TableColors.COLUMNS.withIndex().associate { (i, key) -> "c${i + 1}" to key } + ("current" to TableColors.CURRENT_COLUMN)
+        TableColors.COLUMNS.withIndex().associate { (i, key) -> "c${i + 1}" to key } +
+            ("current" to TableColors.CURRENT_COLUMN) + ("substituted" to TableColors.SUBSTITUTED_VALUE)
 
     override fun getDisplayName(): String = MyMessageBundle.message("tables.settings.name")
 
@@ -24,6 +25,7 @@ class TableColorSettingsPage : ColorSettingsPage {
     override fun getDemoText(): String = """
         Scenario Outline: Ordering <item>
           Given I order <amount> <item>
+          # Example Row tool window, Scenario tab: Given I order <substituted>3</substituted> <substituted>apple</substituted>
           Examples:
             | <c1>item</c1>   | <c2>amount</c2> | <current>   price   </current>| <c4>currency</c4> | <c5>shop</c5>   | <c6>note</c6>  | <c1>express</c1> |
             | <c1>apple</c1>  | <c2>3</c2>      | <current>   1.20    </current>| <c4>EUR</c4>      | <c5>Berlin</c5> | <c6>ripe</c6>  | <c1>yes</c1>     |
@@ -35,6 +37,7 @@ class TableColorSettingsPage : ColorSettingsPage {
     override fun getAttributeDescriptors(): Array<AttributesDescriptor> =
         TableColors.COLUMNS.mapIndexed { i, key -> AttributesDescriptor(MyMessageBundle.message("tables.color.column", i + 1), key) }
             .plus(AttributesDescriptor(MyMessageBundle.message("tables.color.current.column"), TableColors.CURRENT_COLUMN))
+            .plus(AttributesDescriptor(MyMessageBundle.message("tables.color.substituted.value"), TableColors.SUBSTITUTED_VALUE))
             .toTypedArray()
 
     override fun getColorDescriptors(): Array<ColorDescriptor> = ColorDescriptor.EMPTY_ARRAY

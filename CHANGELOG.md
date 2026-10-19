@@ -17,3 +17,4 @@
 - Examples tables: each column gets its own color, and the column at the caret is highlighted in every row; both can be turned off in Settings | Languages & Frameworks | Cucumber.js Tables
 - Breadcrumbs for `.feature` files, down to the Examples row and the column (header name) at the caret
 - Example Row tool window: shows the Examples row at the caret as header and value pairs, compares it with a pinned row, and edits values in place
+- The Example Row tool window runs or debugs the shown row, and its Scenario tab shows the scenario with the row's values filled in
