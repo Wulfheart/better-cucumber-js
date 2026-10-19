@@ -9,14 +9,12 @@ class CucumberJsCommandLineTest {
         tags: String = "",
         profile: String = "",
         extraArgs: String = "",
-        messagesFile: String = "C:\\Temp\\cucumber-messages.ndjson",
     ): List<String> = CucumberJsCommandLine.arguments(
         cucumberPackagePath = "C:\\project\\node_modules\\@cucumber\\cucumber",
         featurePath = "C:\\project\\features\\calculator.feature",
         line = line,
         tags = tags,
         profile = profile,
-        messagesFile = messagesFile,
         extraArgs = extraArgs,
     ).map { it.render() }
 
@@ -27,7 +25,7 @@ class CucumberJsCommandLineTest {
                 "C:/project/node_modules/@cucumber/cucumber/bin/cucumber-js",
                 "C:/project/features/calculator.feature",
                 "--format",
-                "message:\"C:/Temp/cucumber-messages.ndjson\"",
+                "message",
             ),
             render(),
         )
@@ -39,11 +37,9 @@ class CucumberJsCommandLineTest {
     }
 
     @Test
-    fun messagesTargetIsQuotedSoTheDriveLetterColonIsNotTakenAsSeparator() {
-        // cucumber-js splits `<formatter>:<target>` at the first unquoted colon; an unquoted
-        // `message:C:/...` writes nothing on Windows, the quoted form writes the file
-        val formatArgs = render().dropWhile { it != "--format" }
-        assertEquals(listOf("--format", "message:\"C:/Temp/cucumber-messages.ndjson\""), formatArgs)
+    fun messageFormatComesLastSoItOwnsStdout() {
+        // cucumber-js writes the last format without a target to stdout
+        assertEquals(listOf("--format", "message"), render(extraArgs = "--format progress").takeLast(2))
     }
 
     @Test
@@ -56,11 +52,11 @@ class CucumberJsCommandLineTest {
                 "@smoke and not @wip",
                 "--profile",
                 "ci",
-                "--format",
-                "message:\"C:/Temp/cucumber-messages.ndjson\"",
                 "--fail-fast",
                 "--world-parameters",
                 "{\"a\": 1}",
+                "--format",
+                "message",
             ),
             render(
                 line = 3,
@@ -79,7 +75,6 @@ class CucumberJsCommandLineTest {
             line = 7,
             tags = "@x",
             profile = "",
-            messagesFile = "/local/tmp/m.ndjson",
             extraArgs = "",
         ).map { arg -> arg.render { it.replace("/local", "/remote") } }
 
@@ -90,7 +85,7 @@ class CucumberJsCommandLineTest {
                 "--tags",
                 "@x",
                 "--format",
-                "message:\"/remote/tmp/m.ndjson\"",
+                "message",
             ),
             converted,
         )

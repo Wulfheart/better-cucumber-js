@@ -33,4 +33,15 @@ intellijPlatform {
 tasks.runIde {
     // Opens the manual-testing project in the sandbox IDE
     args(layout.projectDirectory.dir("playground").asFile.absolutePath)
+
+    // Without a subscription the sandbox runs in free mode, which disables Node.js and therefore this plugin
+    val hasSubscriptionKey = intellijPlatform.subscriptionKey.map { true }.orElse(false)
+    doFirst {
+        if (!hasSubscriptionKey.get()) {
+            throw GradleException(
+                "runIde needs an IntelliJ IDEA subscription key, otherwise Node.js and this plugin are not loaded. " +
+                    "Set org.jetbrains.intellij.platform.subscriptionKey=<path to idea.key> in ~/.gradle/gradle.properties."
+            )
+        }
+    }
 }

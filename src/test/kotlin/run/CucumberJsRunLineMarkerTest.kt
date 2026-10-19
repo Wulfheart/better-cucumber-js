@@ -33,4 +33,14 @@ class CucumberJsRunLineMarkerTest : BasePlatformTestCase() {
         assertTrue(info.actions.isNotEmpty())
         assertEquals("Run Feature 'Calculator'", info.tooltipProvider!!.apply(featureKeyword))
     }
+
+    fun testGutterIconsRegisteredViaPluginXml() {
+        myFixture.configureByFile("calculator.feature")
+
+        // Goes through the highlighting pass, so it fails if the extension is missing from plugin.xml.
+        // The platform prefixes each tooltip with a "Run Test" line.
+        val tooltips = myFixture.findAllGutters().mapNotNull { it.tooltipText }.flatMap { it.lines() }
+
+        assertContainsElements(tooltips, "Run Feature 'Calculator'", "Run Scenario 'Adding two numbers'")
+    }
 }

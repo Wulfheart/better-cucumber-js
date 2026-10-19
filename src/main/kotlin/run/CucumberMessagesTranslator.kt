@@ -3,11 +3,13 @@ package com.wulfindustries.plugins.run
 import com.google.gson.JsonObject
 import com.google.gson.JsonParser
 import com.intellij.execution.testframework.sm.ServiceMessageBuilder
+import java.nio.charset.StandardCharsets
 import java.nio.file.Path
+import java.util.Base64
 
 /**
  * Translates Cucumber Messages NDJSON (cucumber-js `--format message`) into TeamCity service messages
- * for the SM test runner. One instance per run; feed it lines in order.
+ * for the SM test runner. One instance per run; feed it the messages in order.
  *
  * Features become suites and pickles (scenarios, or single Scenario Outline example rows) become tests.
  *
@@ -36,6 +38,12 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
     private val runningPickles = mutableSetOf<Pickle>()
     private var openSuiteUri: String? = null
 
+    /**
+     * Index where a Cucumber message starts in a stdout [line], or -1 if it has none. A message can follow output
+     * that a step wrote without a trailing newline, so it is not always at the start of the line.
+     */
+    fun envelopeStart(line: String): Int = ENVELOPE_START.find(line)?.range?.first ?: -1
+
     /** Returns zero or more complete `##teamcity[...]` lines for one NDJSON line. */
     fun translate(ndjsonLine: String): List<String> {
         val envelope = parse(ndjsonLine) ?: return emptyList()
@@ -45,6 +53,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         envelope.obj("testCase")?.let(::onTestCase)
         envelope.obj("testCaseStarted")?.let { onTestCaseStarted(it, out) }
         envelope.obj("testStepFinished")?.let(::onTestStepFinished)
+        envelope.obj("attachment")?.let { onAttachment(it, out) }
         envelope.obj("testCaseFinished")?.let { onTestCaseFinished(it, out) }
         envelope.obj("testRunFinished")?.let { closeSuite(out) }
         return out.map(ServiceMessageBuilder::toString)
@@ -156,6 +165,25 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         }
     }
 
+    /** `this.log` and `this.attach` output, shown as the test's stdout. Binary attachments get a one-line summary. */
+    private fun onAttachment(attachment: JsonObject, out: MutableList<ServiceMessageBuilder>) {
+        val pickle = attachment.str("testCaseStartedId")?.let(attempts::get)?.pickle ?: return
+        val body = attachment.str("body").orEmpty()
+        val mediaType = attachment.str("mediaType").orEmpty()
+        val isBase64 = attachment.str("contentEncoding") == "BASE64"
+        val isText = mediaType.startsWith("text/") || mediaType == "application/json"
+        val text = when {
+            isText && isBase64 -> String(Base64.getDecoder().decode(body), StandardCharsets.UTF_8)
+            isText -> body
+            else -> {
+                val size = if (isBase64) Base64.getDecoder().decode(body).size else body.toByteArray().size
+                val fileName = attachment.str("fileName")?.let { " $it" }.orEmpty()
+                "Attachment: $mediaType$fileName ($size bytes)"
+            }
+        }
+        out += ServiceMessageBuilder.testStdOut(pickle.name).addAttribute("out", text.removeSuffix("\n") + "\n")
+    }
+
     private fun onTestCaseFinished(finished: JsonObject, out: MutableList<ServiceMessageBuilder>) {
         val attempt = finished.str("testCaseStartedId")?.let(attempts::remove) ?: return
         if (finished.get("willBeRetried")?.asBoolean == true) return
@@ -196,5 +224,16 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         val seconds = get("seconds")?.asLong ?: 0
         val nanos = get("nanos")?.asLong ?: 0
         return seconds * 1000 + nanos / 1_000_000
+    }
+
+    private companion object {
+        // Envelope keys from the Cucumber Messages schema
+        val ENVELOPE_KEYS = listOf(
+            "attachment", "externalAttachment", "gherkinDocument", "hook", "meta", "parameterType", "parseError",
+            "pickle", "source", "stepDefinition", "suggestion", "testCase", "testCaseFinished", "testCaseStarted",
+            "testRunFinished", "testRunHookFinished", "testRunHookStarted", "testRunStarted", "testStepFinished",
+            "testStepStarted", "undefinedParameterType",
+        )
+        val ENVELOPE_START = Regex("""\{"(${ENVELOPE_KEYS.joinToString("|")})":\{""")
     }
 }

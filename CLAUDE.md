@@ -14,9 +14,10 @@ The run feature lives in `src/main/kotlin/run/` (package `com.wulfindustries.plu
 - JetBrains' **Gherkin** plugin (Marketplace, pinned in `build.gradle.kts`) for `.feature` PSI.
 - The bundled **JavaScript** and **NodeJS** plugins for Node interpreters, process launching and the Node debugger. The run configuration extends `AbstractNodeTargetRunProfile` and the state implements `NodeBaseRunProfileState`, following the shape of JetBrains' Mocha integration.
 
-The plugin runs the project's own `@cucumber/cucumber` with `--format message:<tempfile>`. `CucumberMessagesTranslator` turns that NDJSON into TeamCity service messages, which are injected into the process output for the standard SM test runner. Test locations are `file://<path>:<line>` URLs built by `CucumberJsLocations`. Use that helper everywhere so gutter state icons match the test tree.
+The plugin runs the project's own `@cucumber/cucumber` with `--format message` as the last argument, so the NDJSON goes to stdout alongside the steps' own output, in the order things happened. `CucumberJsTestEventsConverter` (registered through `SMCustomMessagesParsing` on the console properties) picks the messages out of stdout. `CucumberMessagesTranslator` turns them into TeamCity service messages, and all other output passes through, so it shows up under the test that was running. The process runs without a PTY because ConPTY can wrap long NDJSON lines. Test locations are `file://<path>:<line>` URLs built by `CucumberJsLocations`. Use that helper everywhere so gutter state icons match the test tree.
 
 cucumber-js behaviour, checked against 13.3.0 in `playground/`:
+- stdout gets the **last** `--format` without a target, or `progress` if there is none. Formats from the config file and the CLI are combined, with CLI formats last.
 - Feature paths on the command line are **appended to** the config's `paths`, not used instead of them. If a user's `cucumber.js` sets `paths`, a gutter run of one scenario runs the whole suite. This is a known open bug in the plugin. The playground config leaves out `paths` on purpose.
 - A Scenario Outline with no Examples section still produces one pickle, with placeholders left as literal `<name>` (usually undefined steps). Examples that have only a header row produce no pickles.
 - `--retry N` reports each attempt as its own `testCaseStarted`, and every attempt except the last has `willBeRetried: true`. Hook steps also count as steps in the summary.
@@ -28,7 +29,7 @@ Only use public IntelliJ Platform APIs. These members are `@ApiStatus.Internal` 
 Use `./gradlew` (or `.\gradlew.bat` on Windows). CI runs on JDK 21.
 
 - `./gradlew buildPlugin`: build the distributable ZIP into `build/distributions/`
-- `./gradlew runIde`: launch a sandbox IDE with the plugin installed, opening `playground/` (debug through the IDE's `.run/runIde.run.xml` config). `playground/` is a Cucumber.js project covering scenario shapes and result statuses for manual testing. Run `npm install` there first; its README maps each feature file to what it exercises.
+- `./gradlew runIde`: launch a sandbox IDE with the plugin installed, opening `playground/` (debug through the IDE's `.run/runIde.run.xml` config). `playground/` is a Cucumber.js project covering scenario shapes and result statuses for manual testing. Run `npm install` there first; its README maps each feature file to what it exercises. The sandbox needs `org.jetbrains.intellij.platform.subscriptionKey=<path to idea.key>` in `~/.gradle/gradle.properties`, and `runIde` fails without it. Without a subscription the IDE runs in free mode, which disables the Ultimate-only Node.js plugin and therefore this plugin, so no gutter icons appear.
 - `./gradlew check`: run tests (JUnit 4 + IntelliJ Platform test framework)
 - `./gradlew test --tests "com.wulfindustries.plugins.SomeTest"`: run a single test class (append `.methodName` for one method)
 - `./gradlew verifyPlugin`: run the IntelliJ Plugin Verifier for compatibility checks

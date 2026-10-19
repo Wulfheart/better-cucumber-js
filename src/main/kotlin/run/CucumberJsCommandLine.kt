@@ -9,22 +9,15 @@ import com.intellij.util.execution.ParametersListUtil
 object CucumberJsCommandLine {
     const val BIN_RELATIVE_PATH = "bin/cucumber-js"
 
-    /**
-     * One argument. Path arguments are converted to the run target's path before [prefix] and [suffix] are applied.
-     * [quotePath] wraps the converted path in double quotes, which cucumber-js needs for `--format <name>:<path>`
-     * when the path contains a colon (e.g. a Windows drive letter).
-     */
+    /** One argument. Path arguments are converted to the run target's path before [suffix] is applied. */
     data class Arg(
         val value: String,
         val isPath: Boolean = false,
-        val prefix: String = "",
         val suffix: String = "",
-        val quotePath: Boolean = false,
     ) {
         fun render(convertPath: (String) -> String = { it }): String {
-            if (!isPath) return prefix + value + suffix
-            val path = FileUtil.toSystemIndependentName(convertPath(value))
-            return prefix + (if (quotePath) "\"$path\"" else path) + suffix
+            if (!isPath) return value + suffix
+            return FileUtil.toSystemIndependentName(convertPath(value)) + suffix
         }
     }
 
@@ -34,7 +27,6 @@ object CucumberJsCommandLine {
         line: Int?,
         tags: String,
         profile: String,
-        messagesFile: String,
         extraArgs: String,
     ): List<Arg> = buildList {
         add(Arg("$cucumberPackagePath/$BIN_RELATIVE_PATH", isPath = true))
@@ -47,11 +39,13 @@ object CucumberJsCommandLine {
             add(Arg("--profile"))
             add(Arg(profile.trim()))
         }
-        add(Arg("--format"))
-        add(Arg(messagesFile, isPath = true, prefix = "message:", quotePath = true))
         if (extraArgs.isNotBlank()) {
             // Single quotes too, since that is how JSON options such as --world-parameters are usually written
             ParametersListUtil.parse(extraArgs.trim(), false, true).forEach { add(Arg(it)) }
         }
+        // Last, so it wins over any stdout formatter from the user's config or extra args: cucumber-js uses the
+        // last format without a target for stdout, and test events must share stdout with the steps' own output
+        add(Arg("--format"))
+        add(Arg("message"))
     }
 }

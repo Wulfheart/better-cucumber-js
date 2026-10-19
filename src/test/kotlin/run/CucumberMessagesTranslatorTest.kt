@@ -98,6 +98,32 @@ class CucumberMessagesTranslatorTest {
     }
 
     @Test
+    fun attachmentsBecomeTestOutput() {
+        // Captured from playground/features/output.feature, scenario "Logs and attachments"
+        val output = translate("attachments.ndjson")
+            .filter { it.messageName == "testStdOut" }
+            .map { "${it.attributes["name"]} | ${it.attributes["out"]}" }
+        assertEquals(
+            listOf(
+                "Logs and attachments | hello from this.log\n",
+                "Logs and attachments | A plain text attachment\nwith two lines\n",
+                "Logs and attachments | {\n  \"numbers\": [\n    1,\n    2,\n    3\n  ],\n  \"ok\": true\n}\n",
+                "Logs and attachments | Attachment: image/png (70 bytes)\n",
+            ),
+            output,
+        )
+    }
+
+    @Test
+    fun findsMessagesAfterOutputWithoutNewline() {
+        val translator = CucumberMessagesTranslator(baseDir)
+        assertEquals(0, translator.envelopeStart("""{"testRunStarted":{"id":"1"}}"""))
+        assertEquals(7, translator.envelopeStart("""partial{"testStepFinished":{"id":"1"}}"""))
+        assertEquals(-1, translator.envelopeStart("""{"user":{"json":"logged by a step"}}"""))
+        assertEquals(-1, translator.envelopeStart("plain output"))
+    }
+
+    @Test
     fun ignoresNonJsonAndUnknownLines() {
         val translator = CucumberMessagesTranslator(baseDir)
         assertEquals(emptyList<String>(), translator.translate(""))
