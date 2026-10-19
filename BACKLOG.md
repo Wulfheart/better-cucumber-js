@@ -7,6 +7,7 @@ Each item has a stable ID (`B` for bugs, `F` for features) to refer to it by, e.
 ## Bugs
 
 - [x] **B1: Rerun breaks after adding a line to the feature file.** The test runner's "Rerun" action (not "Rerun Failed Tests") stops working once a new line is added to the feature file. Likely cause: the run configuration created from the gutter holds a fixed `file:line`, which no longer points at the scenario after the edit. "Rerun Failed Tests" avoids this through `ScenarioAnchors`; Rerun may need the same treatment.
+- [ ] **B2: A gutter run executes the whole suite when the config sets `paths`.** cucumber-js appends feature paths from the command line to the config's `paths` instead of replacing them (checked against 13.3.0), so running one scenario from the gutter runs everything when the user's `cucumber.js` sets `paths`. Fix by overriding `paths` for gutter runs, e.g. a generated config that loads the user's config/profile and clears `paths`.
 
 ## Feature ideas
 
@@ -18,3 +19,6 @@ Each item has a stable ID (`B` for bugs, `F` for features) to refer to it by, e.
 - [x] **F6: Example Row tool window.** Shows the Examples row at the caret as `header | value` lines. A row can be pinned to compare it with the row at the caret, by column within a table or by header name across tables, with a filter for differing columns. Values can be edited in place (escaped and re-aligned, one undo step), and selecting a line moves the caret to that cell.
 - [x] **F7: Run and debug from the Example Row tool window.** Run and Debug buttons in both tabs start the shown Examples row through the same run configuration producer as its gutter icon, reusing a matching configuration.
 - [x] **F8: Expanded scenario tab.** A Scenario tab in the Example Row tool window shows the scenario as cucumber-js runs it for the shown row: Backgrounds first, then the outline's steps with placeholders replaced in step text, data tables (re-aligned) and doc strings, inserted values highlighted.
+- [ ] **F9: Outline placeholder inspection.** Warn about a `<name>` placeholder in a Scenario Outline step (text, data table or doc string) that has no matching column in one of its Examples tables, and about Examples columns no step uses. Quick fix: add the missing column. Build on `ExamplesTables` for columns.
+- [ ] **F10: Inline failure markers.** After a run, show a failed step's error message as an editor annotation/inlay on its line in the `.feature` file, cleared on the next run or on edit. Locations come from `CucumberJsLocations`.
+- [ ] **F11: Open binary attachments.** Text from `this.log`/`this.attach` already shows as step output, but binary attachments (e.g. screenshots) only get a one-line summary in `CucumberMessagesTranslator.onAttachment`. Save them to a temp file and make the summary a link that opens them in the IDE.
