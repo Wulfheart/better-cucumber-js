@@ -14,6 +14,7 @@ Setup: run `npm install` in this directory, then set a Node.js interpreter in th
 | `features/hooks.feature` | Hooks: a tagged Before hook and a tagged After hook that throw (`@failing-before`, `@failing-after`) |
 | `features/slow.feature` | Slow steps (about 20 s in total) for watching pending and running states: a slow Background, several slow steps in a row, progress logged while a step runs, a slow failure followed by a skipped step, a step that exceeds its own 1 s timeout, slow outline rows |
 | `features/flaky.feature` | Retries: passes with `--profile retry` (fails once, then passes), fails without it |
+| `features/navigation.feature` | Step navigation (Ctrl+click a step): `defineParameterType` types with a regex, string or array `regexp`, regex literals (anchored, unanchored with `i`, several capture groups, a named and an optional group), a template literal, optional text and alternatives. A step defined with `new RegExp(...)` stays unresolved in the IDE (known limitation). Ambiguous steps (chooser) and an undefined step (warning plus "Create step definition") are in `statuses.feature` |
 | `features/i18n.feature` | German Gherkin keywords (`# language: de`) |
 | `features/empty.feature` | A feature with no scenarios |
 | `features/nested/deep.feature` | Location resolution for a feature in a subdirectory |

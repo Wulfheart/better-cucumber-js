@@ -16,7 +16,9 @@
         Run and debug <a href="https://github.com/cucumber/cucumber-js">Cucumber.js</a> features, scenarios and
         Scenario Outline examples straight from the gutter of <code>.feature</code> files.<br>
         Uses the project's own <code>@cucumber/cucumber</code> installation and configuration, and shows results
-        in the IDE test runner.
+        in the IDE test runner.<br>
+        Jump from a step to its JavaScript or TypeScript step definition, get warned about undefined steps and
+        create step definitions for them.
         ]]></description>
 
     <!-- Product and plugin compatibility requirements.
@@ -35,6 +37,10 @@
         <runConfigurationProducer implementation="com.wulfindustries.plugins.run.CucumberJsRunConfigurationProducer"/>
         <runLineMarkerContributor language="Gherkin"
                                   implementationClass="com.wulfindustries.plugins.run.CucumberJsRunLineMarkerContributor"/>
+    </extensions>
+
+    <extensions defaultExtensionNs="org.jetbrains.plugins.cucumber.steps">
+        <cucumberJvmExtensionPoint implementation="com.wulfindustries.plugins.steps.CucumberJsExtension"/>
     </extensions>
 
 </idea-plugin>
