@@ -12,10 +12,20 @@ dependencies {
 
     // IntelliJ Platform Gradle Plugin Dependencies Extension - read more: https://plugins.jetbrains.com/docs/intellij/tools-intellij-platform-gradle-plugin-dependencies-extension.html
     intellijPlatform {
-        intellijIdea("2025.3.6.1")
+        intellijIdea("2026.2.3")
         testFramework(TestFrameworkType.Platform)
 
-        // Add plugin dependencies for compilation here, for example:
-        // bundledPlugin("com.intellij.java")
+        bundledPlugin("JavaScript")
+        bundledPlugin("NodeJS")
+        // Not bundled in IntelliJ IDEA; this build is compatible with 262.*
+        plugin("gherkin", "262.8665.173")
+    }
+}
+
+intellijPlatform {
+    pluginConfiguration {
+        ideaVersion {
+            sinceBuild = "262"
+        }
     }
 }

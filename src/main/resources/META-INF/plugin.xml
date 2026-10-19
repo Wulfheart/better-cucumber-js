@@ -13,21 +13,28 @@
     <!-- Description of the plugin displayed on the Plugin Page and IDE Plugin Manager.
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
-        Enter short description for your plugin here.<br>
-        <em>most HTML tags may be used</em>
+        Run and debug <a href="https://github.com/cucumber/cucumber-js">Cucumber.js</a> features, scenarios and
+        Scenario Outline examples straight from the gutter of <code>.feature</code> files.<br>
+        Uses the project's own <code>@cucumber/cucumber</code> installation and configuration, and shows results
+        in the IDE test runner.
         ]]></description>
 
     <!-- Product and plugin compatibility requirements.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-compatibility.html -->
     <depends>com.intellij.modules.platform</depends>
+    <depends>gherkin</depends>
+    <depends>JavaScript</depends>
+    <depends>NodeJS</depends>
 
     <resource-bundle>messages.MyMessageBundle</resource-bundle>
 
     <!-- Extensions defined by the plugin.
          Read more: https://plugins.jetbrains.com/docs/intellij/plugin-extension-points.html -->
     <extensions defaultExtensionNs="com.intellij">
-        <toolWindow id="MyToolWindow" factoryClass="com.wulfindustries.plugins.MyToolWindowFactory"
-                    icon="AllIcons.Toolwindows.ToolWindowPalette"/>
+        <configurationType implementation="com.wulfindustries.plugins.run.CucumberJsConfigurationType"/>
+        <runConfigurationProducer implementation="com.wulfindustries.plugins.run.CucumberJsRunConfigurationProducer"/>
+        <runLineMarkerContributor language="Gherkin"
+                                  implementationClass="com.wulfindustries.plugins.run.CucumberJsRunLineMarkerContributor"/>
     </extensions>
 
 </idea-plugin>
