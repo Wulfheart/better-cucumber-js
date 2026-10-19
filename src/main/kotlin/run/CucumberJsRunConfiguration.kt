@@ -79,7 +79,9 @@ class CucumberJsRunConfiguration(
 
     override fun readConfiguration(element: Element) {
         super.readConfiguration(element)
-        interpreterRef = NodeJsInterpreterRef.create(JDOMExternalizerUtil.readField(element, INTERPRETER))
+        interpreterRef = JDOMExternalizerUtil.readField(element, INTERPRETER)
+            ?.let(NodeJsInterpreterRef::create)
+            ?: NodeJsInterpreterRef.createProjectRef()
         cucumberPackagePath = JDOMExternalizerUtil.readField(element, PACKAGE, "")
         workingDir = JDOMExternalizerUtil.readField(element, WORKING_DIR, "")
         featurePath = JDOMExternalizerUtil.readField(element, FEATURE, "")
