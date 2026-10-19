@@ -42,13 +42,13 @@ class CucumberMessagesTranslatorTest {
                 When I divide by zero @calculator.feature:15 [ignored: Undefined step: When I divide by zero]
               Adding many numbers @calculator.feature:17
                 1, 1, 2 @calculator.feature:24
-                  Given I have the number 1 @calculator.feature:18 [passed]
-                  When I add 1 @calculator.feature:19 [passed]
-                  Then the result is 2 @calculator.feature:20 [passed]
+                  Given I have the number 1 @calculator.feature:24:1 [passed]
+                  When I add 1 @calculator.feature:24:1 [passed]
+                  Then the result is 2 @calculator.feature:24:1 [passed]
                 2, 2, 5 @calculator.feature:25
-                  Given I have the number 2 @calculator.feature:18 [passed]
-                  When I add 2 @calculator.feature:19 [passed]
-                  Then the result is 5 @calculator.feature:20 [failed: AssertionError: Expected values to be strictly equal:]
+                  Given I have the number 2 @calculator.feature:25:1 [passed]
+                  When I add 2 @calculator.feature:25:1 [passed]
+                  Then the result is 5 @calculator.feature:25:1 [failed: AssertionError: Expected values to be strictly equal:]
             """.trimIndent(),
             tree("full-run.ndjson"),
         )
@@ -92,9 +92,9 @@ class CucumberMessagesTranslatorTest {
             Calculator @calculator.feature
               Adding many numbers @calculator.feature:17
                 2, 2, 5 @calculator.feature:25
-                  Given I have the number 2 @calculator.feature:18 [passed]
-                  When I add 2 @calculator.feature:19 [passed]
-                  Then the result is 5 @calculator.feature:20 [failed: AssertionError: Expected values to be strictly equal:]
+                  Given I have the number 2 @calculator.feature:25:1 [passed]
+                  When I add 2 @calculator.feature:25:1 [passed]
+                  Then the result is 5 @calculator.feature:25:1 [failed: AssertionError: Expected values to be strictly equal:]
             """.trimIndent(),
             tree("single-example.ndjson"),
         )
@@ -159,16 +159,16 @@ class CucumberMessagesTranslatorTest {
                     Background @rules.feature:4
                       Given a calculator @rules.feature:5 [passed]
                       Given the number 10 @rules.feature:14 [passed]
-                    Given the number 1 @rules.feature:22 [passed]
-                    When I add them @rules.feature:23 [passed]
-                    Then the result is 11 @rules.feature:24 [passed]
+                    Given the number 1 @rules.feature:28:1 [passed]
+                    When I add them @rules.feature:28:1 [passed]
+                    Then the result is 11 @rules.feature:28:1 [passed]
                   2, 12 @rules.feature:29
                     Background @rules.feature:4
                       Given a calculator @rules.feature:5 [passed]
                       Given the number 10 @rules.feature:14 [passed]
-                    Given the number 2 @rules.feature:22 [passed]
-                    When I add them @rules.feature:23 [passed]
-                    Then the result is 12 @rules.feature:24 [passed]
+                    Given the number 2 @rules.feature:29:1 [passed]
+                    When I add them @rules.feature:29:1 [passed]
+                    Then the result is 12 @rules.feature:29:1 [passed]
               Multiplication @rules.feature:31
                 Example inside a second Rule @rules.feature:33
                   Background @rules.feature:4
@@ -308,13 +308,13 @@ class CucumberMessagesTranslatorTest {
                 When I divide by zero @calculator.feature:15 [ignored: Not run]
               Adding many numbers @calculator.feature:17 [ignored: Not run]
                 1, 1, 2 @calculator.feature:24 [ignored: Not run]
-                  Given I have the number 1 @calculator.feature:18 [ignored: Not run]
-                  When I add 1 @calculator.feature:19 [ignored: Not run]
-                  Then the result is 2 @calculator.feature:20 [ignored: Not run]
+                  Given I have the number 1 @calculator.feature:24:1 [ignored: Not run]
+                  When I add 1 @calculator.feature:24:1 [ignored: Not run]
+                  Then the result is 2 @calculator.feature:24:1 [ignored: Not run]
                 2, 2, 5 @calculator.feature:25 [ignored: Not run]
-                  Given I have the number 2 @calculator.feature:18 [ignored: Not run]
-                  When I add 2 @calculator.feature:19 [ignored: Not run]
-                  Then the result is 5 @calculator.feature:20 [ignored: Not run]
+                  Given I have the number 2 @calculator.feature:25:1 [ignored: Not run]
+                  When I add 2 @calculator.feature:25:1 [ignored: Not run]
+                  Then the result is 5 @calculator.feature:25:1 [ignored: Not run]
             """.trimIndent(),
             TestTree(translate(truncated)).render(),
         )

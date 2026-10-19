@@ -172,8 +172,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         scenario?.parent?.takeIf { it.kind == GherkinIndex.Kind.RULE }?.let { rule ->
             parent = register(rule.id, parent, rule.label, true, CucumberJsLocations.url(path, rule.line), true, out)
         }
-        // For Scenario Outline examples the last AST node is the example table row
-        val row = pickle.astNodeIds.getOrNull(1)?.let(index::node)?.takeIf { it.kind == GherkinIndex.Kind.ROW }
+        val row = exampleRow(pickle)
         if (scenario == null || row == null) {
             val name = pickle.name.ifBlank { scenario?.label.orEmpty() }
             return register("pickle:$pickleId", parent, name, true, CucumberJsLocations.url(path, scenario?.line), false, out,
@@ -200,6 +199,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
     /** Adds a node for every pickle step of [testCase] under [parent]; background steps go into a Background suite. */
     private fun addSteps(parent: Node, testCase: TestCase, pickle: Pickle, out: MutableList<ServiceMessageBuilder>): StepNodes {
         val path = absolutePath(pickle.uri)
+        val row = exampleRow(pickle)
         val byTestStepId = mutableMapOf<String, Node>()
         var background: Node? = null
         for (testStep in testCase.steps) {
@@ -211,11 +211,17 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
                     CucumberJsLocations.url(path, astBackground.line), true, out).also { background = it }
             }
             val name = astStep?.keyword.orEmpty() + pickleStep.text
-            byTestStepId[testStep.id] =
-                register(null, stepParent, name, false, CucumberJsLocations.url(path, astStep?.line), false, out)
+            // Outline steps lead to their row. The column keeps the URL apart from the row's, as gutter state is per URL
+            val location = if (row != null && astBackground == null) CucumberJsLocations.url(path, row.line, 1)
+            else CucumberJsLocations.url(path, astStep?.line)
+            byTestStepId[testStep.id] = register(null, stepParent, name, false, location, false, out)
         }
         return StepNodes(byTestStepId, background)
     }
+
+    /** For Scenario Outline examples the last AST node is the example table row. */
+    private fun exampleRow(pickle: Pickle): GherkinIndex.AstNode? =
+        pickle.astNodeIds.getOrNull(1)?.let(index::node)?.takeIf { it.kind == GherkinIndex.Kind.ROW }
 
     /**
      * Adds a node to the tree, or returns the one already registered under [key]. Nodes are pending until [start]
