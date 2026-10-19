@@ -63,6 +63,11 @@ class CucumberJsRunConfiguration(
         val baseDir = Path.of(effectiveWorkingDir)
         return object : SMTRunnerConsoleProperties(this, MyMessageBundle.message("run.configuration.test.framework.name"), executor),
             SMCustomMessagesParsing {
+            init {
+                // The translator pre-builds the tree with nodeId/parentNodeId messages
+                isIdBasedTestTree = true
+            }
+
             override fun getTestLocator(): SMTestLocator = FileUrlProvider.INSTANCE
 
             override fun createTestEventsConverter(

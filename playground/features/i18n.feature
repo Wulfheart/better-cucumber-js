@@ -1,4 +1,4 @@
-/new# language: de
+# language: de
 Funktionalität: Deutsche Schlüsselwörter
   Gherkin keywords in another language.
 

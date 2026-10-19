@@ -10,8 +10,8 @@ import com.intellij.openapi.util.Key
 /**
  * Turns the Cucumber messages that cucumber-js writes to stdout (`--format message`) into test events.
  *
- * The messages share stdout with the steps' own output, in the order they happened, so console output written
- * between a test's start and finish messages lands under that test. Lines that are not messages pass through.
+ * The messages share stdout with the steps' own output, in the order they happened. While one test case runs, other
+ * output (stdout and stderr) is sent to its running step, or to the scenario while a hook runs; otherwise it passes through.
  */
 class CucumberJsTestEventsConverter(
     testFrameworkName: String,
@@ -22,6 +22,12 @@ class CucumberJsTestEventsConverter(
     private val stdout = StringBuilder()
 
     override fun processConsistentText(text: String, outputType: Key<*>) {
+        if (outputType == ProcessOutputTypes.STDERR) {
+            // The translator is shared with stdout, which may be read on another thread
+            val message = synchronized(stdout) { translator.outputMessage(text, isStdErr = true) }
+            super.processConsistentText(message?.let { it + "\n" } ?: text, outputType)
+            return
+        }
         if (outputType != ProcessOutputTypes.STDOUT) {
             super.processConsistentText(text, outputType)
             return
@@ -50,11 +56,11 @@ class CucumberJsTestEventsConverter(
     private fun processStdoutLine(line: String) {
         val start = translator.envelopeStart(line)
         if (start < 0) {
-            super.processConsistentText(line, ProcessOutputTypes.STDOUT)
+            processOutput(line)
             return
         }
         if (start > 0) {
-            super.processConsistentText(line.substring(0, start) + "\n", ProcessOutputTypes.STDOUT)
+            processOutput(line.substring(0, start) + "\n")
         }
         val messages = try {
             translator.translate(line.substring(start))
@@ -66,6 +72,11 @@ class CucumberJsTestEventsConverter(
         for (message in messages) {
             super.processConsistentText(message + "\n", ProcessOutputTypes.STDOUT)
         }
+    }
+
+    private fun processOutput(text: String) {
+        val message = translator.outputMessage(text, isStdErr = false)
+        super.processConsistentText(message?.let { it + "\n" } ?: text, ProcessOutputTypes.STDOUT)
     }
 
     private companion object {
