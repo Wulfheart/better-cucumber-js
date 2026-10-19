@@ -10,6 +10,7 @@ import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.intellij.testFramework.fixtures.TempDirTestFixture
 import com.intellij.testFramework.fixtures.impl.TempDirTestFixtureImpl
 import com.wulfindustries.plugins.run.CucumberJsCommandLine.FeatureLocation
+import org.jdom.Element
 
 class ScenarioAnchorTest : BasePlatformTestCase() {
     // Anchors look feature files up by local path, so they must be real files
@@ -134,6 +135,53 @@ class ScenarioAnchorTest : BasePlatformTestCase() {
             listOf(FeatureLocation(path, listOf(4, 18))),
             anchors.locations(listOf(steps[2], steps[0], cases[0])),
         )
+    }
+
+    private fun configurationAt(line: Int): CucumberJsRunConfiguration {
+        val factory = CucumberJsConfigurationType.getInstance().factory
+        return (factory.createTemplateConfiguration(project) as CucumberJsRunConfiguration).also {
+            it.featurePath = path
+            it.line = line
+            it.scenarioPath = pathAt(line)
+        }
+    }
+
+    fun testConfigurationRunsUnmovedScenarioAtItsLine() {
+        assertEquals(FeatureLocation(path, listOf(8)), configurationAt(8).currentLocation())
+    }
+
+    fun testConfigurationFollowsLinesAddedAbove() {
+        val scenario = configurationAt(8)
+        val row = configurationAt(17)
+        edit { insertString(lineStart(3), "  # a comment\n\n") }
+        assertEquals(FeatureLocation(path, listOf(10)), scenario.currentLocation())
+        assertEquals(10, scenario.line)
+        assertEquals(FeatureLocation(path, listOf(19)), row.currentLocation())
+    }
+
+    fun testConfigurationFindsMovedRowByItsCells() {
+        val row = configurationAt(17)
+        edit { setText(text.replace("| 1 |\n        | 2 |", "| 2 |\n        | 1 |")) }
+        assertEquals(FeatureLocation(path, listOf(16)), row.currentLocation())
+    }
+
+    fun testConfigurationKeepsLineOfScenarioRenamedInPlace() {
+        val scenario = configurationAt(3)
+        edit { replaceString(lineStart(3) + "  Scenario: ".length, lineStart(4) - 1, "Renamed") }
+        assertEquals(FeatureLocation(path, listOf(3)), scenario.currentLocation())
+    }
+
+    fun testConfigurationStoresPath() {
+        val row = configurationAt(17)
+        val inRule = configurationAt(8)
+        for (original in listOf(row, inRule)) {
+            val element = Element("configuration")
+            original.writeConfiguration(element)
+            val copy = configurationAt(3)
+            copy.readConfiguration(element)
+            assertEquals(original.line, copy.line)
+            assertEquals(original.scenarioPath, copy.scenarioPath)
+        }
     }
 
     fun testPathFallsBackToRowIndexWhenCellsChanged() {

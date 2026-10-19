@@ -2,6 +2,9 @@ package com.wulfindustries.plugins.run
 
 import com.intellij.execution.PsiLocation
 import com.intellij.execution.actions.ConfigurationContext
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.editor.Document
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
@@ -73,6 +76,38 @@ class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
         val config = createFrom(elementAt("Scenario Outline:"))!!
         val other = ConfigurationContext.createEmptyContextForLocation(PsiLocation(elementAt("Feature:")))
         assertFalse(CucumberJsRunConfigurationProducer().isConfigurationFromContext(config, other))
+    }
+
+    private fun edit(change: Document.() -> Unit) {
+        val document = myFixture.editor.document
+        WriteCommandAction.runWriteCommandAction(project) { document.change() }
+        PsiDocumentManager.getInstance(project).commitAllDocuments()
+    }
+
+    private fun isFrom(config: CucumberJsRunConfiguration, element: PsiElement): Boolean =
+        CucumberJsRunConfigurationProducer().isConfigurationFromContext(
+            config, ConfigurationContext.createEmptyContextForLocation(PsiLocation(element)))
+
+    fun testScenarioKeepsItsPathButFeatureDoesNot() {
+        configureProject()
+        assertEquals("Adding two numbers", createFrom(elementAt("Then the result is 2"))!!.scenarioPath?.scenarioName)
+        assertNull(createFrom(elementAt("Feature:"))!!.scenarioPath)
+    }
+
+    fun testMovedScenarioIsSameConfiguration() {
+        configureProject()
+        val config = createFrom(elementAt("Scenario Outline:"))!!
+        edit { insertString(0, "# comment\n") }
+        assertTrue(isFrom(config, elementAt("Scenario Outline:")))
+        assertFalse(isFrom(config, elementAt("| 2 |")))
+    }
+
+    fun testOtherScenarioAtOldLineIsNotSameConfiguration() {
+        configureProject()
+        val config = createFrom(elementAt("Scenario: Adding two numbers"))!!
+        // Removes "Adding two numbers" (lines 6-9), which moves the outline up to its line 7
+        edit { deleteString(getLineStartOffset(5), getLineStartOffset(9)) }
+        assertFalse(isFrom(config, elementAt("Scenario Outline:")))
     }
 
     fun testNoCucumberPackage() {

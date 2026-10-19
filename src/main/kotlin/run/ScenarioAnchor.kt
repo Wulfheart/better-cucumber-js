@@ -1,5 +1,6 @@
 package com.wulfindustries.plugins.run
 
+import com.intellij.openapi.editor.Document
 import com.intellij.openapi.editor.RangeMarker
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.LocalFileSystem
@@ -8,6 +9,7 @@ import com.intellij.psi.PsiElement
 import com.intellij.psi.PsiManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.util.text.CharArrayUtil
+import org.jdom.Element
 import org.jetbrains.plugins.cucumber.psi.GherkinExamplesBlock
 import org.jetbrains.plugins.cucumber.psi.GherkinFile
 import org.jetbrains.plugins.cucumber.psi.GherkinRule
@@ -37,19 +39,25 @@ class ScenarioAnchor private constructor(private val marker: RangeMarker, privat
     companion object {
         /** Anchors the scenario or example row at [line] (1-based) of the feature file at [featurePath]. */
         fun create(project: Project, featurePath: String, line: Int): ScenarioAnchor? {
-            val file = LocalFileSystem.getInstance().findFileByPath(featurePath) ?: return null
-            val psiFile = PsiManager.getInstance(project).findFile(file) as? GherkinFile ?: return null
-            val documents = PsiDocumentManager.getInstance(project)
-            val document = documents.getDocument(psiFile) ?: return null
-            if (documents.isUncommited(document) || line < 1 || line > document.lineCount) return null
-            val lineStart = document.getLineStartOffset(line - 1)
-            val offset = CharArrayUtil.shiftForward(document.charsSequence, lineStart, document.getLineEndOffset(line - 1), " \t")
-            val target = psiFile.findElementAt(offset)?.let(CucumberJsTargets::find) ?: return null
-            if (target.isFeature || target.line != line) return null
-            val path = ScenarioPath.of(target.element) ?: return null
-            return ScenarioAnchor(document.createRangeMarker(CucumberJsTargets.anchorOf(target.element).textRange), path)
+            val (document, element) = targetAt(project, featurePath, line) ?: return null
+            val path = ScenarioPath.of(element) ?: return null
+            return ScenarioAnchor(document.createRangeMarker(CucumberJsTargets.anchorOf(element).textRange), path)
         }
     }
+}
+
+/** The scenario, outline or example row that starts at [line] (1-based) of the feature file at [featurePath], with its document. */
+private fun targetAt(project: Project, featurePath: String, line: Int): Pair<Document, PsiElement>? {
+    val file = LocalFileSystem.getInstance().findFileByPath(featurePath) ?: return null
+    val psiFile = PsiManager.getInstance(project).findFile(file) as? GherkinFile ?: return null
+    val documents = PsiDocumentManager.getInstance(project)
+    val document = documents.getDocument(psiFile) ?: return null
+    if (documents.isUncommited(document) || line < 1 || line > document.lineCount) return null
+    val lineStart = document.getLineStartOffset(line - 1)
+    val offset = CharArrayUtil.shiftForward(document.charsSequence, lineStart, document.getLineEndOffset(line - 1), " \t")
+    val target = psiFile.findElementAt(offset)?.let(CucumberJsTargets::find) ?: return null
+    if (target.isFeature || target.line != line) return null
+    return document to target.element
 }
 
 /**
@@ -78,7 +86,50 @@ data class ScenarioPath(
         return rows.firstOrNull { cells(it) == row.cells } ?: rows.getOrNull(row.rowIndex)
     }
 
+    /**
+     * The scenario, outline or example row this path names, checking first whether it is still at [line] (1-based),
+     * where it was last seen. Call in a read action.
+     */
+    fun find(project: Project, line: Int): PsiElement? =
+        targetAt(project, featurePath, line)?.second?.takeIf { of(it) == this } ?: resolve(project)
+
+    /** Stores this path, except [featurePath], as a child of [parent]. */
+    fun writeTo(parent: Element) {
+        val scenario = Element(SCENARIO).setAttribute(NAME, scenarioName).setAttribute(OCCURRENCE, occurrence.toString())
+        ruleName?.let { scenario.setAttribute(RULE, it) }
+        row?.let { row ->
+            val rowElement = Element(ROW).setAttribute(EXAMPLES, row.examplesIndex.toString()).setAttribute(INDEX, row.rowIndex.toString())
+            row.cells.forEach { rowElement.addContent(Element(CELL).setText(it)) }
+            scenario.addContent(rowElement)
+        }
+        parent.addContent(scenario)
+    }
+
     companion object {
+        private const val SCENARIO = "scenario"
+        private const val NAME = "name"
+        private const val RULE = "rule"
+        private const val OCCURRENCE = "occurrence"
+        private const val ROW = "row"
+        private const val EXAMPLES = "examples"
+        private const val INDEX = "index"
+        private const val CELL = "cell"
+
+        /** The path stored by [writeTo] in [parent], or `null` if there is none. */
+        fun readFrom(parent: Element, featurePath: String): ScenarioPath? {
+            val scenario = parent.getChild(SCENARIO) ?: return null
+            val name = scenario.getAttributeValue(NAME) ?: return null
+            val occurrence = scenario.getAttributeValue(OCCURRENCE)?.toIntOrNull() ?: return null
+            val row = scenario.getChild(ROW)?.let { row ->
+                Row(
+                    row.getAttributeValue(EXAMPLES)?.toIntOrNull() ?: return null,
+                    row.getAttributeValue(INDEX)?.toIntOrNull() ?: return null,
+                    row.getChildren(CELL).map { it.text },
+                )
+            }
+            return ScenarioPath(featurePath, scenario.getAttributeValue(RULE), name, occurrence, row)
+        }
+
         /** The path of a scenario, scenario outline or Examples data row. */
         fun of(element: PsiElement): ScenarioPath? {
             val tableRow = element as? GherkinTableRow

@@ -13,3 +13,4 @@
 - Ctrl+click (Go to Declaration) on a step jumps to its JavaScript or TypeScript step definition, with a chooser for ambiguous steps; Cucumber expressions, custom parameter types and regexes are supported
 - Undefined steps are highlighted, and "Create step definition" adds a cucumber-js style stub to a new or existing step file
 - Rerun Failed Tests reruns the failed scenarios and example rows, also after lines were added or removed in the feature files since the run
+- Rerunning a scenario or example row, from the test runner or its run configuration, still finds it after lines were added or removed in the feature file

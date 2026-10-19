@@ -58,8 +58,12 @@ class CucumberJsSettingsEditor(private val project: Project) : SettingsEditor<Cu
         configuration.interpreterRef = interpreterField.interpreterRef
         configuration.cucumberPackagePath = packageField.text.trim()
         configuration.workingDir = workingDirField.text.trim()
-        configuration.featurePath = featureField.text.trim()
-        configuration.line = lineField.text.trim().toIntOrNull()?.takeIf { it > 0 }
+        val featurePath = featureField.text.trim()
+        val line = lineField.text.trim().toIntOrNull()?.takeIf { it > 0 }
+        // A hand-edited location no longer names the scenario the configuration was created for
+        if (featurePath != configuration.featurePath || line != configuration.line) configuration.scenarioPath = null
+        configuration.featurePath = featurePath
+        configuration.line = line
         configuration.tags = tagsField.text
         configuration.profile = profileField.text
         configuration.extraArgs = extraArgsField.text

@@ -17,13 +17,13 @@ import com.wulfindustries.plugins.run.CucumberJsCommandLine.FeatureLocation
 import java.nio.file.Path
 
 /**
- * @param locations what to run; the configuration's feature file and line unless given (used by "Rerun Failed Tests")
+ * @param locations what to run; the configuration's [CucumberJsRunConfiguration.currentLocation] unless given (used by
+ * "Rerun Failed Tests")
  */
 class CucumberJsRunProfileState(
     private val configuration: CucumberJsRunConfiguration,
     private val environment: ExecutionEnvironment,
-    private val locations: List<FeatureLocation> =
-        listOf(FeatureLocation(configuration.featurePath, listOfNotNull(configuration.line))),
+    private val locations: List<FeatureLocation> = listOf(configuration.currentLocation()),
 ) : NodeBaseRunProfileState {
     private val project = configuration.project
 
