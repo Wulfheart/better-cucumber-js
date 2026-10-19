@@ -27,7 +27,10 @@ class CucumberJsRunLineMarkerContributor : RunLineMarkerContributor(), DumbAware
             element.elementType == GherkinTokenTypes.PIPE -> MyMessageBundle.message("run.line.marker.run.example")
             else -> MyMessageBundle.message("run.line.marker.run.scenario", target.name)
         }
-        return Info(icon, ExecutorAction.getActions(), { tooltip })
+        return object : Info(icon, ExecutorAction.getActions(), { tooltip }) {
+            // Gherkin's own CucumberRunLineMarkerContributor marks the same keywords with the same executor actions
+            override fun shouldReplace(other: Info): Boolean = true
+        }
     }
 
     private fun targetFor(leaf: PsiElement): CucumberJsTarget? {

@@ -6,6 +6,9 @@ import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.runners.ExecutionEnvironment
 import com.intellij.execution.testframework.TestConsoleProperties
+import com.intellij.execution.testframework.actions.AbstractRerunFailedTestsAction
+import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
+import com.intellij.execution.ui.ConsoleView
 import com.intellij.execution.testframework.sm.FileUrlProvider
 import com.intellij.execution.testframework.sm.SMCustomMessagesParsing
 import com.intellij.execution.testframework.sm.runner.OutputToGeneralTestEventsConverter
@@ -75,6 +78,9 @@ class CucumberJsRunConfiguration(
                 consoleProperties: TestConsoleProperties,
             ): OutputToGeneralTestEventsConverter =
                 CucumberJsTestEventsConverter(testFrameworkName, consoleProperties, CucumberMessagesTranslator(baseDir))
+
+            override fun createRerunFailedTestsAction(consoleView: ConsoleView): AbstractRerunFailedTestsAction? =
+                (consoleView as? SMTRunnerConsoleView)?.let { CucumberJsRerunFailedTestsAction(it, this) }
         }
     }
 

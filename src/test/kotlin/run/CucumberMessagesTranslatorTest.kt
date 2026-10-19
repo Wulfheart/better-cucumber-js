@@ -67,6 +67,15 @@ class CucumberMessagesTranslatorTest {
     }
 
     @Test
+    fun scenariosAndExampleRowsAreTaggedForRerun() {
+        val tagged = translate(lines("full-run.ndjson"))
+            .filter { it.attributes["metainfo"] == CucumberMessagesTranslator.CASE_METAINFO }
+            .map { it.attributes["name"] }
+        // The outline itself and the feature are not rerun units
+        assertEquals(listOf("Adding two numbers", "A failing addition", "An undefined step", "1, 1, 2", "2, 2, 5"), tagged)
+    }
+
+    @Test
     fun failureCarriesStackTraceAndDuration() {
         val messages = translate(lines("full-run.ndjson"))
         val failed = messages.first { it.messageName == "testFailed" }

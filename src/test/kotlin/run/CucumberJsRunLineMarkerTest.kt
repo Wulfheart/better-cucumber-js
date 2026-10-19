@@ -1,5 +1,8 @@
 package com.wulfindustries.plugins.run
 
+import com.intellij.execution.lineMarker.ExecutorAction
+import com.intellij.openapi.actionSystem.Separator
+import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
@@ -37,10 +40,21 @@ class CucumberJsRunLineMarkerTest : BasePlatformTestCase() {
     fun testGutterIconsRegisteredViaPluginXml() {
         myFixture.configureByFile("calculator.feature")
 
-        // Goes through the highlighting pass, so it fails if the extension is missing from plugin.xml.
-        // The platform prefixes each tooltip with a "Run Test" line.
+        // Goes through the highlighting pass, so it fails if the extension is missing from plugin.xml
         val tooltips = myFixture.findAllGutters().mapNotNull { it.tooltipText }.flatMap { it.lines() }
 
         assertContainsElements(tooltips, "Run Feature 'Calculator'", "Run Scenario 'Adding two numbers'")
+    }
+
+    fun testReplacesGherkinsOwnMarkers() {
+        myFixture.configureByFile("calculator.feature")
+        val gutters = myFixture.findAllGutters()
+
+        // Gherkin's CucumberRunLineMarkerContributor adds a "Run Test" tooltip line and a second set of executor actions
+        assertDoesntContain(gutters.mapNotNull { it.tooltipText }.flatMap { it.lines() }, "Run Test")
+        for (gutter in gutters) {
+            val actions = (gutter as GutterIconRenderer).popupMenuActions!!.getChildren(null).filterNot { it is Separator }
+            assertEquals(gutter.tooltipText, ExecutorAction.getActions().size, actions.size)
+        }
     }
 }

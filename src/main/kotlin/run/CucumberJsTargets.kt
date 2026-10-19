@@ -82,7 +82,10 @@ object CucumberJsTargets {
      */
     internal fun lineOf(element: PsiElement): Int? {
         val document = PsiDocumentManager.getInstance(element.project).getDocument(element.containingFile) ?: return null
-        val anchor = element.node.findChildByType(GherkinTokenTypes.SCENARIOS_KEYWORDS)?.psi ?: element
-        return document.getLineNumber(anchor.textRange.startOffset) + 1
+        return document.getLineNumber(anchorOf(element).textRange.startOffset) + 1
     }
+
+    /** The part of [element] that [lineOf] measures: a scenario's keyword, or the element itself. */
+    internal fun anchorOf(element: PsiElement): PsiElement =
+        element.node.findChildByType(GherkinTokenTypes.SCENARIOS_KEYWORDS)?.psi ?: element
 }

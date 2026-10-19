@@ -176,14 +176,16 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         val row = pickle.astNodeIds.getOrNull(1)?.let(index::node)?.takeIf { it.kind == GherkinIndex.Kind.ROW }
         if (scenario == null || row == null) {
             val name = pickle.name.ifBlank { scenario?.label.orEmpty() }
-            return register("pickle:$pickleId", parent, name, true, CucumberJsLocations.url(path, scenario?.line), false, out)
+            return register("pickle:$pickleId", parent, name, true, CucumberJsLocations.url(path, scenario?.line), false, out,
+                metainfo = CASE_METAINFO)
         }
         parent = register(scenario.id, parent, scenario.label, true, CucumberJsLocations.url(path, scenario.line), true, out)
         val examples = row.parent
         if (examples != null && scenario.hasSeveralExamplesTables) {
             parent = register(examples.id, parent, examples.label, true, CucumberJsLocations.url(path, examples.line), true, out)
         }
-        return register("pickle:$pickleId", parent, rowName(row), true, CucumberJsLocations.url(path, row.line), false, out)
+        return register("pickle:$pickleId", parent, rowName(row), true, CucumberJsLocations.url(path, row.line), false, out,
+            metainfo = CASE_METAINFO)
     }
 
     private fun rowName(row: GherkinIndex.AstNode): String {
@@ -213,7 +215,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
 
     /**
      * Adds a node to the tree, or returns the one already registered under [key]. Nodes are pending until [start]
-     * unless [running] is set.
+     * unless [running] is set. [metainfo] ends up on the test proxy.
      */
     private fun register(
         key: String?,
@@ -224,6 +226,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         autoFinish: Boolean,
         out: MutableList<ServiceMessageBuilder>,
         running: Boolean = false,
+        metainfo: String? = null,
     ): Node {
         key?.let(nodesByKey::get)?.let { return it }
         val node = Node(++lastNodeId, parent, name, isSuite, autoFinish)
@@ -233,6 +236,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         val message = if (isSuite) ServiceMessageBuilder.testSuiteStarted(name) else ServiceMessageBuilder.testStarted(name)
         message.node(node).addAttribute("running", running.toString())
         locationHint?.let { message.addAttribute("locationHint", it) }
+        metainfo?.let { message.addAttribute("metainfo", it) }
         out += message
         return node
     }
@@ -421,17 +425,20 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         return seconds * 1000 + nanos / 1_000_000
     }
 
-    private companion object {
-        const val ROOT_NODE_ID = 0
-        const val MAX_ROW_NAME_LENGTH = 60
+    companion object {
+        /** Metainfo of scenario and example row suites, the unit that "Rerun Failed Tests" reruns. */
+        const val CASE_METAINFO = "scenario"
+
+        private const val ROOT_NODE_ID = 0
+        private const val MAX_ROW_NAME_LENGTH = 60
 
         // Envelope keys from the Cucumber Messages schema
-        val ENVELOPE_KEYS = listOf(
+        private val ENVELOPE_KEYS = listOf(
             "attachment", "externalAttachment", "gherkinDocument", "hook", "meta", "parameterType", "parseError",
             "pickle", "source", "stepDefinition", "suggestion", "testCase", "testCaseFinished", "testCaseStarted",
             "testRunFinished", "testRunHookFinished", "testRunHookStarted", "testRunStarted", "testStepFinished",
             "testStepStarted", "undefinedParameterType",
         )
-        val ENVELOPE_START = Regex("""\{"(${ENVELOPE_KEYS.joinToString("|")})":\{""")
+        private val ENVELOPE_START = Regex("""\{"(${ENVELOPE_KEYS.joinToString("|")})":\{""")
     }
 }

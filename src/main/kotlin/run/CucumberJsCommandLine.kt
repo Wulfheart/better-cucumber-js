@@ -21,16 +21,21 @@ object CucumberJsCommandLine {
         }
     }
 
+    /** A feature file to run, limited to the scenarios or example rows at [lines] (1-based) unless that is empty. */
+    data class FeatureLocation(val path: String, val lines: List<Int> = emptyList())
+
     fun arguments(
         cucumberPackagePath: String,
-        featurePath: String,
-        line: Int?,
+        locations: List<FeatureLocation>,
         tags: String,
         profile: String,
         extraArgs: String,
     ): List<Arg> = buildList {
         add(Arg("$cucumberPackagePath/$BIN_RELATIVE_PATH", isPath = true))
-        add(Arg(featurePath, isPath = true, suffix = line?.let { ":$it" }.orEmpty()))
+        for (location in locations) {
+            // cucumber-js takes several lines of one file as `path:12:34`
+            add(Arg(location.path, isPath = true, suffix = location.lines.joinToString("") { ":$it" }))
+        }
         if (tags.isNotBlank()) {
             add(Arg("--tags"))
             add(Arg(tags.trim()))

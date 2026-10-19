@@ -13,11 +13,17 @@ import com.intellij.javascript.nodejs.NodeStackTraceFilter
 import com.intellij.javascript.nodejs.execution.NodeBaseRunProfileState
 import com.intellij.javascript.nodejs.execution.NodeTargetRun
 import com.intellij.javascript.nodejs.execution.NodeTargetRunOptions
+import com.wulfindustries.plugins.run.CucumberJsCommandLine.FeatureLocation
 import java.nio.file.Path
 
+/**
+ * @param locations what to run; the configuration's feature file and line unless given (used by "Rerun Failed Tests")
+ */
 class CucumberJsRunProfileState(
     private val configuration: CucumberJsRunConfiguration,
     private val environment: ExecutionEnvironment,
+    private val locations: List<FeatureLocation> =
+        listOf(FeatureLocation(configuration.featurePath, listOfNotNull(configuration.line))),
 ) : NodeBaseRunProfileState {
     private val project = configuration.project
 
@@ -35,8 +41,7 @@ class CucumberJsRunProfileState(
 
         val arguments = CucumberJsCommandLine.arguments(
             cucumberPackagePath = configuration.cucumberPackagePath,
-            featurePath = configuration.featurePath,
-            line = configuration.line,
+            locations = locations,
             tags = configuration.tags,
             profile = configuration.profile,
             extraArgs = configuration.extraArgs,
@@ -58,8 +63,12 @@ class CucumberJsRunProfileState(
         val console = SMTestRunnerConnectionUtil.createConsole(properties.testFrameworkName, properties)
         console.addMessageFilter(NodeStackTraceFilter(project, dir))
         console.addMessageFilter(NodeConsoleAdditionalFilter(project, dir))
+        // The platform leaves creating it to us. Before attaching, so it sees the first scenario start
+        val rerunFailedTests = properties.createRerunFailedTestsAction(console)
         ProcessTerminatedListener.attach(processHandler)
         console.attachToProcess(processHandler)
-        return DefaultExecutionResult(console, processHandler)
+        return DefaultExecutionResult(console, processHandler).apply {
+            rerunFailedTests?.let { setRestartActions(it) }
+        }
     }
 }

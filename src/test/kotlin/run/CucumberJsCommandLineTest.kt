@@ -1,5 +1,6 @@
 package com.wulfindustries.plugins.run
 
+import com.wulfindustries.plugins.run.CucumberJsCommandLine.FeatureLocation
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -11,8 +12,7 @@ class CucumberJsCommandLineTest {
         extraArgs: String = "",
     ): List<String> = CucumberJsCommandLine.arguments(
         cucumberPackagePath = "C:\\project\\node_modules\\@cucumber\\cucumber",
-        featurePath = "C:\\project\\features\\calculator.feature",
-        line = line,
+        locations = listOf(FeatureLocation("C:\\project\\features\\calculator.feature", listOfNotNull(line))),
         tags = tags,
         profile = profile,
         extraArgs = extraArgs,
@@ -34,6 +34,19 @@ class CucumberJsCommandLineTest {
     @Test
     fun scenarioLineIsAppendedToFeaturePath() {
         assertEquals("C:/project/features/calculator.feature:12", render(line = 12)[1])
+    }
+
+    @Test
+    fun severalFilesAndLines() {
+        val arguments = CucumberJsCommandLine.arguments(
+            cucumberPackagePath = "/p",
+            locations = listOf(FeatureLocation("/f/a.feature", listOf(3, 12)), FeatureLocation("/f/b.feature", listOf(7))),
+            tags = "",
+            profile = "",
+            extraArgs = "",
+        ).map { it.render() }
+
+        assertEquals(listOf("/f/a.feature:3:12", "/f/b.feature:7"), arguments.subList(1, 3))
     }
 
     @Test
@@ -71,8 +84,7 @@ class CucumberJsCommandLineTest {
     fun pathConversionAppliesToPathArgumentsOnly() {
         val converted = CucumberJsCommandLine.arguments(
             cucumberPackagePath = "/local/pkg",
-            featurePath = "/local/a.feature",
-            line = 7,
+            locations = listOf(FeatureLocation("/local/a.feature", listOf(7))),
             tags = "@x",
             profile = "",
             extraArgs = "",
