@@ -53,7 +53,7 @@ data class ExampleRecord(
 
         private fun rowName(row: GherkinTableRow, otherTable: Boolean = false): String {
             val table = ExamplesTables.tableOf(row)!!
-            val name = MyMessageBundle.message("tables.breadcrumb.row", ExamplesTables.rows(table).indexOf(row))
+            val name = MyMessageBundle.message("tables.tool.window.example", ExamplesTables.rows(table).indexOf(row))
             if (!otherTable) return name
             return "$name (${ExamplesTables.describe(table.parent as GherkinExamplesBlock)})"
         }

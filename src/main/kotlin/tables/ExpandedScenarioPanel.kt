@@ -10,6 +10,8 @@ import com.intellij.openapi.editor.markup.HighlighterLayer
 import com.intellij.openapi.editor.markup.HighlighterTargetArea
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.ui.SimpleToolWindowPanel
+import com.intellij.util.ui.JBUI
+import com.intellij.util.ui.UIUtil
 import com.intellij.util.ui.components.BorderLayoutPanel
 import com.intellij.ui.components.JBPanelWithEmptyText
 import com.wulfindustries.plugins.MyMessageBundle
@@ -29,7 +31,7 @@ internal class ExpandedScenarioPanel(private val project: Project, private val s
         settings.isCaretRowShown = false
     }
     private val empty = JBPanelWithEmptyText().withEmptyText(MyMessageBundle.message("tables.tool.window.empty"))
-    private val body = BorderLayoutPanel()
+    private val body = BorderLayoutPanel().withBorder(JBUI.Borders.empty(0, HORIZONTAL_PADDING))
 
     init {
         setContent(body)
@@ -42,6 +44,8 @@ internal class ExpandedScenarioPanel(private val project: Project, private val s
         val expanded = runReadActionBlocking { selection.row?.element?.let(ExpandedScenario::of) }
         body.removeAll()
         body.addToCenter(if (expanded == null) empty else editor.component)
+        // The padding takes the colour of what it surrounds
+        body.background = if (expanded == null) UIUtil.getPanelBackground() else editor.backgroundColor
         body.revalidate()
         body.repaint()
         if (expanded == null || expanded.text == document.text) return

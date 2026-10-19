@@ -110,11 +110,12 @@ object ExamplesTables {
 
     /**
      * Replaces the value in [column] of [row] with [value], escaped, and re-aligns the table.
-     * Runs as one undoable command.
+     * Runs as one undoable command, merged with the earlier commands of the same [groupId].
      */
-    fun setCell(project: Project, rowPointer: SmartPsiElementPointer<GherkinTableRow>, column: Int, value: String) {
+    fun setCell(project: Project, rowPointer: SmartPsiElementPointer<GherkinTableRow>, column: Int, value: String, groupId: String? = null) {
         val documents = PsiDocumentManager.getInstance(project)
-        WriteCommandAction.writeCommandAction(project).withName(MyMessageBundle.message("tables.edit.command")).run<RuntimeException> {
+        WriteCommandAction.writeCommandAction(project).withName(MyMessageBundle.message("tables.edit.command"))
+            .withGroupId(groupId).run<RuntimeException> {
             val row = rowPointer.element ?: return@run
             val file = row.containingFile
             val document = documents.getDocument(file) ?: return@run

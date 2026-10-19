@@ -19,3 +19,4 @@
 - Breadcrumbs for `.feature` files, down to the Examples row and the column (header name) at the caret
 - Example Row tool window: shows the Examples row at the caret as header and value pairs, compares it with a pinned row, and edits values in place
 - The Example Row tool window runs or debugs the shown row, and its Scenario tab shows the scenario with the row's values filled in
+- The Example Row tool window also shows the example row that is being run, and is empty outside Examples rows; it can select the row in the editor, keeps one pinned row per Scenario Outline, jumps to the selected cell only when "Jump to cell on selection" is on, and writes edited values to the feature file as you type
