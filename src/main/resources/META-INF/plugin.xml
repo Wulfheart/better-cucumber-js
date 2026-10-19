@@ -18,7 +18,9 @@
         Uses the project's own <code>@cucumber/cucumber</code> installation and configuration, and shows results
         in the IDE test runner.<br>
         Jump from a step to its JavaScript or TypeScript step definition, get warned about undefined steps and
-        create step definitions for them.
+        create step definitions for them.<br>
+        Large Examples tables stay readable: rainbow columns, the column at the caret highlighted in every row,
+        breadcrumbs down to the row and column, and an Example Row tool window to compare and edit rows.
         ]]></description>
 
     <!-- Product and plugin compatibility requirements.
@@ -37,6 +39,17 @@
         <runConfigurationProducer implementation="com.wulfindustries.plugins.run.CucumberJsRunConfigurationProducer"/>
         <runLineMarkerContributor language="Gherkin"
                                   implementationClass="com.wulfindustries.plugins.run.CucumberJsRunLineMarkerContributor"/>
+
+        <annotator language="Gherkin" implementationClass="com.wulfindustries.plugins.tables.RainbowColumnsAnnotator"/>
+        <editorFactoryListener implementation="com.wulfindustries.plugins.tables.CurrentColumnHighlighter"/>
+        <breadcrumbsInfoProvider implementation="com.wulfindustries.plugins.tables.GherkinBreadcrumbsProvider"/>
+        <colorSettingsPage implementation="com.wulfindustries.plugins.tables.TableColorSettingsPage"/>
+        <additionalTextAttributes scheme="Default" file="colorSchemes/CucumberJsTablesDefault.xml"/>
+        <additionalTextAttributes scheme="Darcula" file="colorSchemes/CucumberJsTablesDarcula.xml"/>
+        <applicationConfigurable parentId="language" instance="com.wulfindustries.plugins.tables.CucumberJsTableConfigurable"
+                                 id="com.wulfindustries.plugins.tables" key="tables.settings.name"/>
+        <toolWindow id="Example Row" anchor="right" secondary="true" icon="AllIcons.Nodes.DataTables"
+                    factoryClass="com.wulfindustries.plugins.tables.ExampleRowToolWindowFactory"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.cucumber.steps">

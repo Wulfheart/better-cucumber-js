@@ -1,0 +1,32 @@
+<list>
+  <option name="CUCUMBER_JS_TABLE_COLUMN_1">
+    <value>
+      <option name="FOREGROUND" value="6CB6FF"/>
+    </value>
+  </option>
+  <option name="CUCUMBER_JS_TABLE_COLUMN_2">
+    <value>
+      <option name="FOREGROUND" value="E8A06B"/>
+    </value>
+  </option>
+  <option name="CUCUMBER_JS_TABLE_COLUMN_3">
+    <value>
+      <option name="FOREGROUND" value="A5D16A"/>
+    </value>
+  </option>
+  <option name="CUCUMBER_JS_TABLE_COLUMN_4">
+    <value>
+      <option name="FOREGROUND" value="C39AF0"/>
+    </value>
+  </option>
+  <option name="CUCUMBER_JS_TABLE_COLUMN_5">
+    <value>
+      <option name="FOREGROUND" value="E6C86E"/>
+    </value>
+  </option>
+  <option name="CUCUMBER_JS_TABLE_COLUMN_6">
+    <value>
+      <option name="FOREGROUND" value="5FCFCF"/>
+    </value>
+  </option>
+</list>
