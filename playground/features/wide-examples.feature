@@ -4,6 +4,15 @@ Feature: Wide Examples tables
   There are no empty cells: Gherkin's "Row must have the same cells count" inspection counts them as missing.
 
   Scenario Outline: Order <id> from <customer>
+    Given the step logs "<id>"
+
+    Examples:
+    |id|
+    |1005 |
+    |2 |
+
+
+  Scenario Outline: Order <id> from <customer>
     Given the step logs "<customer> ordered <quantity> x <product> (<status>)"
     Then a passing step
 
