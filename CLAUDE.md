@@ -8,7 +8,7 @@ An IntelliJ Platform plugin (Kotlin) that lets users work with [Cucumber.js](htt
 
 ## Project state
 
-v1 is in progress: run and debug a feature, scenario or Scenario Outline example row from the gutter of `.feature` files, with results in the IDE test runner. Step navigation, inspections and completion come later. `plugin.xml` still has a placeholder vendor.
+v1 is in progress: run and debug a feature, scenario or Scenario Outline example row from the gutter of `.feature` files, with results in the IDE test runner. Step navigation, inspections and completion come later. `verifyPlugin` rejects the template's default `<vendor>` values, so keep a real vendor in `plugin.xml`.
 
 The run feature lives in `src/main/kotlin/run/` (package `com.wulfindustries.plugins.run`). It is built on three plugin dependencies:
 - JetBrains' **Gherkin** plugin (Marketplace, pinned in `build.gradle.kts`) for `.feature` PSI.
