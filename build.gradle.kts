@@ -29,3 +29,8 @@ intellijPlatform {
         }
     }
 }
+
+tasks.runIde {
+    // Opens the manual-testing project in the sandbox IDE
+    args(layout.projectDirectory.dir("playground").asFile.absolutePath)
+}

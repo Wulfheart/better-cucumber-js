@@ -1,0 +1,11 @@
+{
+  "name": "better-cucumber-js-playground",
+  "private": true,
+  "description": "Cucumber.js project for manually testing the better-cucumber-js plugin",
+  "scripts": {
+    "test": "cucumber-js"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^13.3.0"
+  }
+}

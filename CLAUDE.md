@@ -16,6 +16,11 @@ The run feature lives in `src/main/kotlin/run/` (package `com.wulfindustries.plu
 
 The plugin runs the project's own `@cucumber/cucumber` with `--format message:<tempfile>`. `CucumberMessagesTranslator` turns that NDJSON into TeamCity service messages, which are injected into the process output for the standard SM test runner. Test locations are `file://<path>:<line>` URLs built by `CucumberJsLocations`. Use that helper everywhere so gutter state icons match the test tree.
 
+cucumber-js behaviour, checked against 13.3.0 in `playground/`:
+- Feature paths on the command line are **appended to** the config's `paths`, not used instead of them. If a user's `cucumber.js` sets `paths`, a gutter run of one scenario runs the whole suite. This is a known open bug in the plugin. The playground config leaves out `paths` on purpose.
+- A Scenario Outline with no Examples section still produces one pickle, with placeholders left as literal `<name>` (usually undefined steps). Examples that have only a header row produce no pickles.
+- `--retry N` reports each attempt as its own `testCaseStarted`, and every attempt except the last has `willBeRetried: true`. Hook steps also count as steps in the summary.
+
 Only use public IntelliJ Platform APIs. These members are `@ApiStatus.Internal` and must be avoided: `NodePackageField.getDescriptor()`, `ExecutorAction.wrap(...)`, `RunLineMarkerContributor.EXTENSION`.
 
 ## Commands
@@ -23,7 +28,7 @@ Only use public IntelliJ Platform APIs. These members are `@ApiStatus.Internal` 
 Use `./gradlew` (or `.\gradlew.bat` on Windows). CI runs on JDK 21.
 
 - `./gradlew buildPlugin`: build the distributable ZIP into `build/distributions/`
-- `./gradlew runIde`: launch a sandbox IDE with the plugin installed (debug through the IDE's `.run/runIde.run.xml` config)
+- `./gradlew runIde`: launch a sandbox IDE with the plugin installed, opening `playground/` (debug through the IDE's `.run/runIde.run.xml` config). `playground/` is a Cucumber.js project covering scenario shapes and result statuses for manual testing. Run `npm install` there first; its README maps each feature file to what it exercises.
 - `./gradlew check`: run tests (JUnit 4 + IntelliJ Platform test framework)
 - `./gradlew test --tests "com.wulfindustries.plugins.SomeTest"`: run a single test class (append `.methodName` for one method)
 - `./gradlew verifyPlugin`: run the IntelliJ Plugin Verifier for compatibility checks
