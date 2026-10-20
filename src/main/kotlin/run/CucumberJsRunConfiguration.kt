@@ -5,16 +5,7 @@ import com.intellij.execution.configuration.EnvironmentVariablesData
 import com.intellij.execution.configurations.RunProfileState
 import com.intellij.execution.configurations.RuntimeConfigurationError
 import com.intellij.execution.runners.ExecutionEnvironment
-import com.intellij.execution.testframework.TestConsoleProperties
-import com.intellij.execution.testframework.actions.AbstractRerunFailedTestsAction
-import com.intellij.execution.testframework.sm.runner.ui.SMTRunnerConsoleView
-import com.intellij.execution.ui.ConsoleView
-import com.intellij.execution.testframework.sm.FileUrlProvider
-import com.intellij.execution.testframework.sm.SMCustomMessagesParsing
-import com.intellij.execution.testframework.sm.runner.OutputToGeneralTestEventsConverter
 import com.intellij.execution.testframework.sm.runner.SMRunnerConsolePropertiesProvider
-import com.intellij.execution.testframework.sm.runner.SMTRunnerConsoleProperties
-import com.intellij.execution.testframework.sm.runner.SMTestLocator
 import com.intellij.javascript.nodejs.debug.NodeDebugRunConfiguration
 import com.intellij.javascript.nodejs.execution.AbstractNodeTargetRunProfile
 import com.intellij.javascript.nodejs.interpreter.NodeJsInterpreter
@@ -29,7 +20,6 @@ import com.wulfindustries.plugins.MyMessageBundle
 import com.wulfindustries.plugins.run.CucumberJsCommandLine.FeatureLocation
 import org.jdom.Element
 import java.io.File
-import java.nio.file.Path
 
 class CucumberJsRunConfiguration(
     project: Project,
@@ -91,27 +81,8 @@ class CucumberJsRunConfiguration(
     override fun getState(executor: Executor, environment: ExecutionEnvironment): RunProfileState =
         CucumberJsRunProfileState(this, environment)
 
-    override fun createTestConsoleProperties(executor: Executor): SMTRunnerConsoleProperties {
-        val baseDir = Path.of(effectiveWorkingDir)
-        return object : SMTRunnerConsoleProperties(this, MyMessageBundle.message("run.configuration.test.framework.name"), executor),
-            SMCustomMessagesParsing {
-            init {
-                // The translator pre-builds the tree with nodeId/parentNodeId messages
-                isIdBasedTestTree = true
-            }
-
-            override fun getTestLocator(): SMTestLocator = FileUrlProvider.INSTANCE
-
-            override fun createTestEventsConverter(
-                testFrameworkName: String,
-                consoleProperties: TestConsoleProperties,
-            ): OutputToGeneralTestEventsConverter =
-                CucumberJsTestEventsConverter(testFrameworkName, consoleProperties, CucumberMessagesTranslator(baseDir))
-
-            override fun createRerunFailedTestsAction(consoleView: ConsoleView): AbstractRerunFailedTestsAction? =
-                (consoleView as? SMTRunnerConsoleView)?.let { CucumberJsRerunFailedTestsAction(it, this) }
-        }
-    }
+    override fun createTestConsoleProperties(executor: Executor): CucumberJsTestConsoleProperties =
+        CucumberJsTestConsoleProperties(this, executor)
 
     override fun checkConfiguration() {
         if (interpreter == null) {

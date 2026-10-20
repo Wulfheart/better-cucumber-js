@@ -96,8 +96,8 @@ class TableHighlightingTest : BasePlatformTestCase() {
 
         val record = ExampleRecord.of(pear, apple, differencesOnly = false)!!
         assertEquals("Ordering › Examples: Fruit", record.title)
-        assertEquals("row 2", record.rowName)
-        assertEquals("row 1", record.pinnedName)
+        assertEquals("Example #2", record.rowName)
+        assertEquals("Example #1", record.pinnedName)
         assertEquals(
             listOf(RecordLine(0, "item", "apple", "pear"), RecordLine(1, "amount", "3", "12"), RecordLine(2, "note", "", "ripe")),
             record.lines,

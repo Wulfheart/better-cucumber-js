@@ -22,8 +22,9 @@ import java.util.Base64
  * Events are routed by `testCaseStartedId`, because `--parallel` interleaves the messages of different test cases.
  *
  * @param baseDir directory that relative feature URIs in the messages are resolved against (the run's working dir)
+ * @param scenarios receives how many scenarios and example rows there are, and how they end
  */
-class CucumberMessagesTranslator(private val baseDir: Path) {
+class CucumberMessagesTranslator(private val baseDir: Path, private val scenarios: ScenarioCounts = ScenarioCounts()) {
     private enum class State { PENDING, RUNNING, FINISHED }
 
     private class Node(
@@ -56,6 +57,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         val ownedSuites = listOfNotNull(steps.background, container.takeIf { it !== caseNode })
         val failures = mutableListOf<Failure>()
         var runningStep: Node? = null
+        var allPassed = true
     }
 
     private enum class Status { PASSED, SKIPPED, PENDING, UNDEFINED, AMBIGUOUS, FAILED, UNKNOWN }
@@ -160,6 +162,7 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         }
         val stepCount = caseTrees.values.sumOf { it.firstAttempt.byTestStepId.size }
         out += ServiceMessageBuilder("testCount").addAttribute("count", stepCount.toString())
+        scenarios.start(caseTrees.size)
     }
 
     /** The suite of a scenario or example row, with its feature, rule, outline and Examples suites. */
@@ -296,7 +299,8 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         val result = finished.obj("testStepResult") ?: return
         val status = result.str("status")?.let { runCatching { Status.valueOf(it) }.getOrNull() } ?: Status.UNKNOWN
         attempt.runningStep = null
-        val node = attempt.steps.byTestStepId[testStepId] ?: hookNode(attempt, testStepId, status, out) ?: return
+        if (status != Status.PASSED) attempt.allPassed = false
+        val node =attempt.steps.byTestStepId[testStepId] ?: hookNode(attempt, testStepId, status, out) ?: return
         start(node, out)
         val duration = result.obj("duration").toMillis()
         when (status) {
@@ -373,13 +377,17 @@ class CucumberMessagesTranslator(private val baseDir: Path) {
         }
         for (node in attempt.steps.byTestStepId.values) finishLeftover(node, out)
         attempt.ownedSuites.forEach { finishSuite(it, out) }
-        if (!willBeRetried) finishSuite(attempt.caseNode, out)
+        if (!willBeRetried) {
+            finishSuite(attempt.caseNode, out)
+            scenarios.finished(failed = attempt.failures.isNotEmpty(), passed = attempt.allPassed)
+        }
     }
 
     /** Whatever never ran is shown as not run, and suites still open are closed. */
     private fun onTestRunFinished(out: MutableList<ServiceMessageBuilder>) {
         buildTree(out)
         roots.toList().forEach { finishSubtree(it, out) }
+        scenarios.runFinished()
     }
 
     private fun finishSubtree(node: Node, out: MutableList<ServiceMessageBuilder>) {

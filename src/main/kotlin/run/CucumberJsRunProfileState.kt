@@ -60,9 +60,10 @@ class CucumberJsRunProfileState(
     override fun createExecutionResult(processHandler: ProcessHandler): ExecutionResult {
         val dir = Path.of(configuration.effectiveWorkingDir)
         val properties = configuration.createTestConsoleProperties(environment.executor)
-        val console = SMTestRunnerConnectionUtil.createConsole(properties.testFrameworkName, properties)
+        val console = SMTestRunnerConnectionUtil.createConsole(properties)
         console.addMessageFilter(NodeStackTraceFilter(project, dir))
         console.addMessageFilter(NodeConsoleAdditionalFilter(project, dir))
+        ScenarioCountLabel.install(console.resultsViewer.statusLine, properties.scenarioCounts, processHandler)
         // The platform leaves creating it to us. Before attaching, so it sees the first scenario start
         val rerunFailedTests = properties.createRerunFailedTestsAction(console)
         ProcessTerminatedListener.attach(processHandler)

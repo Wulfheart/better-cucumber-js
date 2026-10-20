@@ -135,6 +135,51 @@ class CucumberMessagesTranslatorTest {
         )
     }
 
+    private fun scenarioCounts(lines: List<String>): ScenarioCounts.Snapshot {
+        val counts = ScenarioCounts()
+        val translator = CucumberMessagesTranslator(baseDir, counts)
+        lines.forEach(translator::translate)
+        return counts.snapshot
+    }
+
+    @Test
+    fun countsScenariosAndExampleRows() {
+        assertEquals(ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 2, failed = 2, done = true),
+            scenarioCounts(lines("full-run.ndjson")))
+        assertEquals(ScenarioCounts.Snapshot(total = 1, finished = 1, passed = 0, failed = 1, done = true),
+            scenarioCounts(lines("single-example.ndjson")))
+    }
+
+    @Test
+    fun retriedScenarioCountsOnceWithItsLastAttempt() {
+        assertEquals(ScenarioCounts.Snapshot(total = 1, finished = 1, passed = 0, failed = 1, done = true),
+            scenarioCounts(lines("retry.ndjson")))
+        assertEquals(ScenarioCounts.Snapshot(total = 1, finished = 1, passed = 1, failed = 0, done = true),
+            scenarioCounts(lines("flaky-retry.ndjson")))
+    }
+
+    @Test
+    fun scenariosThatNeverStartCountAsIgnored() {
+        val all = lines("full-run.ndjson")
+        val firstFinished = all.indexOfFirst { it.startsWith("""{"testCaseFinished"""") }
+        val counts = scenarioCounts(all.take(firstFinished + 1) + all.last { it.startsWith("""{"testRunFinished"""") })
+        assertEquals(ScenarioCounts.Snapshot(total = 5, finished = 1, passed = 1, failed = 0, done = true), counts)
+        assertEquals(4, counts.ignored)
+    }
+
+    @Test
+    fun scenarioCountText() {
+        // The scenario that is running is counted
+        assertEquals("Scenarios: 2 of 5", ScenarioCounts.Snapshot(total = 5, finished = 1, passed = 1).text())
+        assertEquals("Scenarios: 5 of 5", ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 5).text())
+        assertEquals("Scenarios failed: 1, passed: 3, ignored: 1 of 5 scenarios",
+            ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 3, failed = 1, done = true).text())
+        assertEquals("Scenarios passed: 5 of 5 scenarios",
+            ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 5, done = true).text())
+        assertEquals("Scenarios failed: 1 of 1 scenario",
+            ScenarioCounts.Snapshot(total = 1, finished = 1, failed = 1, done = true).text())
+    }
+
     @Test
     fun rulesAndBackgrounds() {
         assertEquals(

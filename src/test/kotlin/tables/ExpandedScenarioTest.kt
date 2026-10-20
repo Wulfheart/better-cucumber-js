@@ -43,7 +43,7 @@ class ExpandedScenarioTest : BasePlatformTestCase() {
 
         assertEquals(
             """
-            # Examples: Fruit, row 2
+            # Examples: Fruit, Example #2
             Background:
               Given a shop
 
@@ -83,7 +83,7 @@ class ExpandedScenarioTest : BasePlatformTestCase() {
         val expanded = ExpandedScenario.of(rowAt(text, "Apfel"))!!
 
         assertEquals(
-            "# language: de\n# Beispiele:, row 1\nSzenariogrundriss: Kaufen\n  Angenommen ich kaufe Apfel\n",
+            "# language: de\n# Beispiele:, Example #1\nSzenariogrundriss: Kaufen\n  Angenommen ich kaufe Apfel\n",
             expanded.text,
         )
     }
