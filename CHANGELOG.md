@@ -8,6 +8,7 @@
 
 - Run and debug Cucumber.js features, scenarios and Scenario Outline examples from the gutter of `.feature` files
 - Run and debug every feature file in a directory from its context menu in the Project view
+- In projects that also use Cucumber for Java, features whose steps are implemented in JavaScript or TypeScript run with Cucumber.js from the gutter
 - The test runner shows the whole run up front, with pending tests, as Feature > Rule > Scenario (or Scenario Outline > Examples > example row) > Background > steps
 - Clicking a step under an example row in the test runner jumps to that row
 - The test runner's status line also counts scenarios (each example row is one): the scenario that is running while the run goes on, then how many failed, passed and were ignored

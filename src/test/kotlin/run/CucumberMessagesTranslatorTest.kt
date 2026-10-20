@@ -367,7 +367,7 @@ class CucumberMessagesTranslatorTest {
 
     @Test
     fun attachmentsBecomeStepOutput() {
-        // Captured from playground/features/output.feature, scenario "Logs and attachments"
+        // Captured from playground/js/features/output.feature, scenario "Logs and attachments"
         val output = TestTree(translate(lines("attachments.ndjson"))).nodes()
             .filter { it.output.isNotEmpty() }
             .map { "${it.name} | ${it.output}" }

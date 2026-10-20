@@ -42,7 +42,7 @@ class CucumberJsTestEventsConverterTest : BasePlatformTestCase() {
         converter.setProcessor(processor)
         converter.startTesting()
 
-        // Captured from playground/features/output.feature, scenario "Logs and attachments"
+        // Captured from playground/js/features/output.feature, scenario "Logs and attachments"
         val lines = Files.readAllLines(Path.of("src/test/testData/messages/attachments.ndjson"))
         for (line in lines) {
             when {

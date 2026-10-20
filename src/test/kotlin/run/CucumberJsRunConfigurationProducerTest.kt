@@ -2,12 +2,23 @@ package com.wulfindustries.plugins.run
 
 import com.intellij.execution.PsiLocation
 import com.intellij.execution.actions.ConfigurationContext
+import com.intellij.execution.actions.ConfigurationFromContext
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
+import com.intellij.openapi.module.Module
+import com.intellij.testFramework.ExtensionTestUtil
+import org.jetbrains.plugins.cucumber.BDDFrameworkType
+import org.jetbrains.plugins.cucumber.CucumberJvmExtensionPoint
+import org.jetbrains.plugins.cucumber.StepDefinitionCreator
+import org.jetbrains.plugins.cucumber.psi.GherkinFile
+import org.jetbrains.plugins.cucumber.steps.AbstractCucumberExtension
+import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition
+import com.intellij.openapi.fileTypes.PlainTextFileType
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
@@ -155,5 +166,88 @@ class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
     fun testNoCucumberPackage() {
         configureProject(withCucumber = false)
         assertNull(createFrom(elementAt("Scenario Outline:")))
+    }
+
+    private fun fromContext(element: PsiElement): ConfigurationFromContext =
+        CucumberJsRunConfigurationProducer().createConfigurationFromContext(
+            ConfigurationContext.createEmptyContextForLocation(PsiLocation(element)))!!
+
+    fun testSourceElementIsTheClickedElement() {
+        // Other producers (Cucumber for Java) keep the clicked leaf; an enclosing source would rank ours out
+        configureProject()
+        val leaf = elementAt("Scenario Outline:")
+        assertSame(leaf, fromContext(leaf).sourceElement)
+    }
+
+    fun testReplacesOtherRunnersWhenStepsAreInJs() {
+        configureProject()
+        myFixture.addFileToProject("app/features/step_definitions/steps.js",
+            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
+        val self = fromContext(elementAt("Scenario Outline:"))
+        assertTrue(self.shouldReplace(fromContext(elementAt("Feature:"))))
+    }
+
+    fun testKeepsOtherRunnersWithoutJsSteps() {
+        configureProject()
+        val self = fromContext(elementAt("Scenario Outline:"))
+        assertFalse(self.shouldReplace(fromContext(elementAt("Feature:"))))
+    }
+
+    fun testKeepsOtherRunnersForDirectories() {
+        configureProject()
+        myFixture.addFileToProject("app/features/step_definitions/steps.js",
+            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
+        val self = fromContext(directory("app/features"))
+        assertFalse(self.shouldReplace(fromContext(elementAt("Feature:"))))
+    }
+
+    /** Stands in for Cucumber for Java: resolves "Given a calculator" to a plain text file. */
+    private fun registerOtherRunnerDefining(step: String) {
+        val file = myFixture.addFileToProject("other/steps.txt", step)
+        val definition = object : AbstractStepDefinition(file) {
+            override fun getVariableNames(): List<String> = emptyList()
+            override fun getCucumberRegexFromElement(element: PsiElement?): String = step
+        }
+        val extension = object : AbstractCucumberExtension() {
+            override fun isStepLikeFile(child: PsiElement): Boolean = child == file
+            override fun isWritableStepLikeFile(child: PsiElement): Boolean = false
+            override fun getStepFileType(): BDDFrameworkType = BDDFrameworkType(PlainTextFileType.INSTANCE)
+            override fun getStepDefinitionCreator(): StepDefinitionCreator = throw UnsupportedOperationException()
+            override fun loadStepsFor(module: Module): List<AbstractStepDefinition> = listOf(definition)
+            override fun getStepDefinitionContainers(featureFile: GherkinFile): Collection<PsiFile> = listOf(file)
+        }
+        ExtensionTestUtil.addExtensions(CucumberJvmExtensionPoint.EP_NAME, listOf(extension), testRootDisposable)
+    }
+
+    fun testStepLanguage() {
+        configureProject()
+        assertEquals(StepLanguage.NONE, CucumberJsTargets.stepLanguage(elementAt("Feature:")))
+        myFixture.addFileToProject("app/features/step_definitions/steps.js",
+            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
+        assertEquals(StepLanguage.JS, CucumberJsTargets.stepLanguage(elementAt("Feature:")))
+    }
+
+    fun testStepsOfAnotherRunner() {
+        configureProject()
+        registerOtherRunnerDefining("a calculator")
+        assertEquals(StepLanguage.OTHER, CucumberJsTargets.stepLanguage(elementAt("Feature:")))
+    }
+
+    fun testStepsBackForAnotherRunnersSteps() {
+        configureProject()
+        registerOtherRunnerDefining("a calculator")
+        val self = fromContext(elementAt("Scenario Outline:"))
+        val other = fromContext(elementAt("Feature:"))
+        assertFalse(self.isPreferredTo(other))
+        assertFalse(self.shouldReplace(other))
+        // Directories are left to the user's choice
+        assertTrue(fromContext(directory("app/features")).isPreferredTo(other))
+    }
+
+    fun testPreferredWithJsSteps() {
+        configureProject()
+        myFixture.addFileToProject("app/features/step_definitions/steps.js",
+            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
+        assertTrue(fromContext(elementAt("Scenario Outline:")).isPreferredTo(fromContext(elementAt("Feature:"))))
     }
 }

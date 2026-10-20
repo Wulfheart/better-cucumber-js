@@ -1,6 +1,7 @@
 package com.wulfindustries.plugins.run
 
 import com.intellij.execution.actions.ConfigurationContext
+import com.intellij.execution.actions.ConfigurationFromContext
 import com.intellij.execution.actions.LazyRunConfigurationProducer
 import com.intellij.execution.configurations.ConfigurationFactory
 import com.intellij.openapi.util.Ref
@@ -22,7 +23,6 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
             configuration.line = null
             configuration.scenarioPath = null
             configuration.name = dir.name
-            sourceElement.set(dir)
             return true
         }
         val target = context.psiLocation?.let(CucumberJsTargets::find) ?: return false
@@ -30,8 +30,28 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
         configuration.line = target.line
         configuration.scenarioPath = if (target.isFeature) null else ScenarioPath.of(target.element)
         configuration.name = target.name
-        sourceElement.set(target.element)
+        // sourceElement stays the clicked element. The platform ranks configurations by source element first and
+        // drops any whose source is an ancestor of another's, before shouldReplace is asked. Cucumber for Java keeps
+        // the clicked leaf, so setting the enclosing scenario here would make ours disappear from the gutter.
         return true
+    }
+
+    /**
+     * Cucumber for Java accepts every feature file in a module with cucumber-java on its classpath. Replace it (and any
+     * other runner) where the feature's steps are implemented in JS/TS.
+     */
+    override fun shouldReplace(self: ConfigurationFromContext, other: ConfigurationFromContext): Boolean {
+        val element = self.sourceElement
+        return element !is PsiDirectory && CucumberJsTargets.stepLanguage(element) == StepLanguage.JS
+    }
+
+    /**
+     * Step back where the feature's steps are implemented in another language, e.g. Java below a directory that also
+     * has `@cucumber/cucumber` installed, so that runner runs them. Directories and undefined steps keep both entries.
+     */
+    override fun isPreferredConfiguration(self: ConfigurationFromContext, other: ConfigurationFromContext): Boolean {
+        val element = self.sourceElement
+        return element is PsiDirectory || CucumberJsTargets.stepLanguage(element) != StepLanguage.OTHER
     }
 
     override fun isConfigurationFromContext(

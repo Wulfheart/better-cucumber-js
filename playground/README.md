@@ -1,8 +1,11 @@
 # Playground
 
-A Cucumber.js project for manually testing the plugin. `./gradlew runIde` opens it in the sandbox IDE.
+Projects for manually testing the plugin. `./gradlew runIde` opens this directory in the sandbox IDE.
 
-Setup: run `npm install` in this directory, then set a Node.js interpreter in the sandbox IDE settings.
+- `js/`: the Cucumber.js project the tables below describe.
+- `java/`: a Cucumber for Java project, for a mixed setup (see the end of this file). It is a sibling of `js/` rather than below it, so `node_modules/@cucumber/cucumber` sits above the JS features only, as in a typical mixed repository.
+
+Setup: run `npm install` in `js/`, then set a Node.js interpreter in the sandbox IDE settings. Paths in the tables are relative to `js/`.
 
 | File | What it exercises |
 | --- | --- |
@@ -21,3 +24,12 @@ Setup: run `npm install` in this directory, then set a Node.js interpreter in th
 | `features/nested/deep.feature` | Location resolution for a feature in a subdirectory |
 
 Useful run configuration settings to try: Tags `@smoke`, `@large` or `not @flaky`, and Profile `retry`.
+
+## Mixed Java and JS project
+
+`java/` is a small Maven project with Cucumber for Java (`java/src/test/resources/playground/java.feature`, steps in `JavaSteps.java`). It reproduces a project that has both runners, where Cucumber for Java's run configuration producer also accepts every JS feature file.
+
+1. Run `./gradlew runIde` from the repository root. Its sandbox includes the Cucumber for Java plugin.
+2. `runIde` links `java/pom.xml` as a Maven project of the playground (in `.idea/misc.xml`), so the sandbox imports it on opening. Set a JDK 17+ as the project SDK if it asks for one.
+3. Once indexing is done, open a JS feature such as `js/features/scenarios.feature` and click a gutter icon. It should run with this plugin's Cucumber.js configuration, not "Cucumber Java".
+4. Open `java/src/test/resources/playground/java.feature`. Its gutter should still offer Cucumber for Java.

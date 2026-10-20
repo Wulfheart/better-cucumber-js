@@ -1,5 +1,6 @@
 package com.wulfindustries.plugins.run
 
+import com.intellij.lang.javascript.JavascriptLanguage
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
@@ -15,9 +16,11 @@ import org.jetbrains.plugins.cucumber.psi.GherkinFile
 import org.jetbrains.plugins.cucumber.psi.GherkinFileType
 import org.jetbrains.plugins.cucumber.psi.GherkinScenario
 import org.jetbrains.plugins.cucumber.psi.GherkinScenarioOutline
+import org.jetbrains.plugins.cucumber.psi.GherkinStep
 import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 import org.jetbrains.plugins.cucumber.psi.GherkinTokenTypes
+import org.jetbrains.plugins.cucumber.steps.reference.CucumberStepReference
 
 /**
  * What a gutter icon or context action runs: a whole feature file ([line] is `null`),
@@ -32,6 +35,9 @@ data class CucumberJsTarget(
     val isFeature: Boolean get() = line == null
     val url: String get() = CucumberJsLocations.url(file.path, line)
 }
+
+/** The language a feature's steps are implemented in; [NONE] when no step resolves. */
+enum class StepLanguage { JS, OTHER, NONE }
 
 object CucumberJsTargets {
     private const val CUCUMBER_PACKAGE = "node_modules/@cucumber/cucumber"
@@ -69,6 +75,27 @@ object CucumberJsTargets {
         val scope = GlobalSearchScope.projectScope(project)
             .intersectWith(GlobalSearchScopesCore.directoryScope(project, dir, true))
         return FileTypeIndex.containsFileOfType(GherkinFileType.INSTANCE, scope)
+    }
+
+    /**
+     * Which language the steps of the feature file containing [element] are implemented in, as Gherkin resolves them
+     * across every installed Cucumber integration (ours and e.g. Cucumber for Java). A feature file belongs to one
+     * runner, so the whole file is checked, not just the clicked scenario. [StepLanguage.NONE] while indexing.
+     */
+    fun stepLanguage(element: PsiElement): StepLanguage {
+        val file = element.containingFile as? GherkinFile ?: return StepLanguage.NONE
+        if (DumbService.isDumb(file.project)) return StepLanguage.NONE
+        var resolvedElsewhere = false
+        for (step in PsiTreeUtil.findChildrenOfType(file, GherkinStep::class.java)) {
+            val definitions = step.references.filterIsInstance<CucumberStepReference>()
+                .flatMap { it.resolveToDefinitions() }
+            for (definition in definitions) {
+                val language = definition.element?.language ?: continue
+                if (language.isKindOf(JavascriptLanguage)) return StepLanguage.JS
+                resolvedElsewhere = true
+            }
+        }
+        return if (resolvedElsewhere) StepLanguage.OTHER else StepLanguage.NONE
     }
 
     fun cucumberPackageDir(workingDir: VirtualFile): VirtualFile? = workingDir.findFileByRelativePath(CUCUMBER_PACKAGE)

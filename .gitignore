@@ -3,5 +3,6 @@
 .intellijPlatform
 build
 .kotlin
-playground/node_modules
+playground/js/node_modules
+playground/java/target
 .claude/worktrees

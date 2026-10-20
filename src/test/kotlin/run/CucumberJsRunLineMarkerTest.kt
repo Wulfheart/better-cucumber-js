@@ -1,7 +1,18 @@
 package com.wulfindustries.plugins.run
 
+import com.intellij.execution.Location
+import com.intellij.execution.PsiLocation
+import com.intellij.execution.actions.ConfigurationContext
+import com.intellij.execution.executors.DefaultDebugExecutor
+import com.intellij.execution.executors.DefaultRunExecutor
 import com.intellij.execution.lineMarker.ExecutorAction
+import com.intellij.openapi.actionSystem.ActionPlaces
+import com.intellij.openapi.actionSystem.ActionUiKind
+import com.intellij.openapi.actionSystem.AnActionEvent
+import com.intellij.openapi.actionSystem.CommonDataKeys
+import com.intellij.openapi.actionSystem.PlatformCoreDataKeys
 import com.intellij.openapi.actionSystem.Separator
+import com.intellij.openapi.actionSystem.impl.SimpleDataContext
 import com.intellij.openapi.editor.markup.GutterIconRenderer
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
@@ -55,6 +66,36 @@ class CucumberJsRunLineMarkerTest : BasePlatformTestCase() {
         for (gutter in gutters) {
             val actions = (gutter as GutterIconRenderer).popupMenuActions!!.getChildren(null).filterNot { it is Separator }
             assertEquals(gutter.tooltipText, ExecutorAction.getActions().size, actions.size)
+        }
+    }
+
+    fun testGutterActionsFindOurConfiguration() {
+        myFixture.addFileToProject("app/node_modules/@cucumber/cucumber/package.json", "{}")
+        myFixture.copyFileToProject("calculator.feature", "app/features/calculator.feature")
+        val file = myFixture.configureFromTempProjectFile("app/features/calculator.feature")
+        val contributor = CucumberJsRunLineMarkerContributor()
+        val leaves = PsiTreeUtil.collectElements(file) { it.firstChild == null && contributor.getInfo(it) != null }
+        assertEquals(6, leaves.size)
+
+        for (leaf in leaves) {
+            val context = ConfigurationContext.createEmptyContextForLocation(PsiLocation(leaf))
+            val configurations = context.configurationsFromContext.orEmpty().map { it.configuration }
+            assertTrue("${leaf.text}: $configurations", configurations.any { it is CucumberJsRunConfiguration })
+
+            val dataContext = SimpleDataContext.builder()
+                .add(CommonDataKeys.PROJECT, project)
+                .add(PlatformCoreDataKeys.MODULE, module)
+                .add(Location.DATA_KEY, PsiLocation(leaf))
+                .build()
+            val runAndDebug = contributor.getInfo(leaf)!!.actions.filterIsInstance<ExecutorAction>()
+                .filter { it.executor.id == DefaultRunExecutor.EXECUTOR_ID || it.executor.id == DefaultDebugExecutor.EXECUTOR_ID }
+            assertEquals(2, runAndDebug.size)
+            for (action in runAndDebug) {
+                val event = AnActionEvent.createEvent(dataContext, action.templatePresentation.clone(),
+                    ActionPlaces.EDITOR_GUTTER_POPUP, ActionUiKind.POPUP, null)
+                action.update(event)
+                assertTrue("${leaf.text}: ${event.presentation.text}", event.presentation.isEnabledAndVisible)
+            }
         }
     }
 }
