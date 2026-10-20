@@ -34,6 +34,8 @@ class CucumberJsRunConfiguration(
     /** Directory of the `@cucumber/cucumber` package, e.g. `<project>/node_modules/@cucumber/cucumber`. */
     var cucumberPackagePath: String = ""
     var workingDir: String = ""
+
+    /** The feature file to run, or a directory to run every feature file below it. */
     var featurePath: String = ""
 
     /** 1-based line of the scenario or example row to run; `null` runs the whole feature. */
@@ -49,9 +51,12 @@ class CucumberJsRunConfiguration(
     override val interpreter: NodeJsInterpreter?
         get() = interpreterRef.resolve(project)
 
-    /** [workingDir], or the feature file's directory when that is blank. */
+    /** [workingDir], or when that is blank the feature directory or the feature file's directory. */
     val effectiveWorkingDir: String
-        get() = workingDir.ifBlank { File(featurePath).parent.orEmpty() }
+        get() = workingDir.ifBlank {
+            val feature = File(featurePath)
+            if (feature.isDirectory) feature.path else feature.parent.orEmpty()
+        }
 
     /**
      * What to run: the feature file, limited to the line the scenario or example row is on now. Updates [line] when
@@ -94,8 +99,12 @@ class CucumberJsRunConfiguration(
         if (workingDir.isNotBlank() && !File(workingDir).isDirectory) {
             throw RuntimeConfigurationError(MyMessageBundle.message("run.configuration.error.no.working.dir", workingDir))
         }
-        if (!File(featurePath).isFile) {
+        val feature = File(featurePath)
+        if (featurePath.isBlank() || !feature.exists()) {
             throw RuntimeConfigurationError(MyMessageBundle.message("run.configuration.error.no.feature", featurePath))
+        }
+        if (line != null && feature.isDirectory) {
+            throw RuntimeConfigurationError(MyMessageBundle.message("run.configuration.error.line.in.directory"))
         }
     }
 

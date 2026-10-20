@@ -4,8 +4,10 @@ import com.intellij.execution.PsiLocation
 import com.intellij.execution.actions.ConfigurationContext
 import com.intellij.openapi.command.WriteCommandAction
 import com.intellij.openapi.editor.Document
+import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiManager
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
@@ -108,6 +110,46 @@ class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
         // Removes "Adding two numbers" (lines 6-9), which moves the outline up to its line 7
         edit { deleteString(getLineStartOffset(5), getLineStartOffset(9)) }
         assertFalse(isFrom(config, elementAt("Scenario Outline:")))
+    }
+
+    private fun directory(path: String): PsiDirectory =
+        PsiManager.getInstance(project).findDirectory(myFixture.findFileInTempDir(path))!!
+
+    private fun assertDirectoryTarget(path: String, name: String) {
+        val dir = directory(path)
+        val config = createFrom(dir)!!
+        val appPath = myFixture.findFileInTempDir("app").path
+        assertEquals(dir.virtualFile.path, config.featurePath)
+        assertNull(config.line)
+        assertNull(config.scenarioPath)
+        assertEquals(appPath, config.workingDir)
+        assertEquals("$appPath/node_modules/@cucumber/cucumber", config.cucumberPackagePath)
+        assertEquals(name, config.name)
+        assertTrue(isFrom(config, dir))
+    }
+
+    fun testFeatureDirectory() {
+        configureProject()
+        assertDirectoryTarget("app/features", "features")
+    }
+
+    fun testDirectoryAboveFeatureDirectory() {
+        configureProject()
+        assertDirectoryTarget("app", "app")
+    }
+
+    fun testDirectoryWithoutFeatures() {
+        configureProject()
+        myFixture.addFileToProject("app/steps/steps.js", "")
+        assertNull(createFrom(directory("app/steps")))
+    }
+
+    fun testFeatureFileIsNotSameAsItsDirectory() {
+        configureProject()
+        val dirConfig = createFrom(directory("app/features"))!!
+        val featureConfig = createFrom(elementAt("Feature:"))!!
+        assertFalse(isFrom(dirConfig, elementAt("Feature:")))
+        assertFalse(isFrom(featureConfig, directory("app/features")))
     }
 
     fun testNoCucumberPackage() {

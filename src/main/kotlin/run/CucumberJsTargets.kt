@@ -1,12 +1,18 @@
 package com.wulfindustries.plugins.run
 
+import com.intellij.openapi.project.DumbService
+import com.intellij.openapi.project.Project
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
+import com.intellij.psi.search.FileTypeIndex
+import com.intellij.psi.search.GlobalSearchScope
+import com.intellij.psi.search.GlobalSearchScopesCore
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.plugins.cucumber.psi.GherkinExamplesBlock
 import org.jetbrains.plugins.cucumber.psi.GherkinFeature
 import org.jetbrains.plugins.cucumber.psi.GherkinFile
+import org.jetbrains.plugins.cucumber.psi.GherkinFileType
 import org.jetbrains.plugins.cucumber.psi.GherkinScenario
 import org.jetbrains.plugins.cucumber.psi.GherkinScenarioOutline
 import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder
@@ -47,14 +53,22 @@ object CucumberJsTargets {
         return CucumberJsTarget(feature ?: gherkinFile, file, null, feature?.featureName ?: file.nameWithoutExtension)
     }
 
-    /** Nearest directory at or above [featureFile] that has `node_modules/@cucumber/cucumber` installed. */
-    fun findWorkingDir(featureFile: VirtualFile): VirtualFile? {
-        var dir = featureFile.parent
+    /** Nearest directory at or above [start] (a feature file or a directory) that has `node_modules/@cucumber/cucumber` installed. */
+    fun findWorkingDir(start: VirtualFile): VirtualFile? {
+        var dir = if (start.isDirectory) start else start.parent
         while (dir != null) {
             if (dir.findFileByRelativePath(CUCUMBER_PACKAGE)?.isDirectory == true) return dir
             dir = dir.parent
         }
         return null
+    }
+
+    /** Whether [dir] has a `.feature` file in it or any of its subdirectories, leaving out libraries and excluded folders. */
+    fun containsFeatures(project: Project, dir: VirtualFile): Boolean {
+        if (DumbService.isDumb(project)) return false
+        val scope = GlobalSearchScope.projectScope(project)
+            .intersectWith(GlobalSearchScopesCore.directoryScope(project, dir, true))
+        return FileTypeIndex.containsFileOfType(GherkinFileType.INSTANCE, scope)
     }
 
     fun cucumberPackageDir(workingDir: VirtualFile): VirtualFile? = workingDir.findFileByRelativePath(CUCUMBER_PACKAGE)

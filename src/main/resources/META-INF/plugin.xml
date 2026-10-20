@@ -14,7 +14,8 @@
          Guidelines: https://plugins.jetbrains.com/docs/marketplace/best-practices-for-listing.html#plugin-description -->
     <description><![CDATA[
         Run and debug <a href="https://github.com/cucumber/cucumber-js">Cucumber.js</a> features, scenarios and
-        Scenario Outline examples straight from the gutter of <code>.feature</code> files.<br>
+        Scenario Outline examples straight from the gutter of <code>.feature</code> files, or whole directories of
+        them from the Project view.<br>
         Uses the project's own <code>@cucumber/cucumber</code> installation and configuration, and shows results
         in the IDE test runner.<br>
         Jump from a step to its JavaScript or TypeScript step definition, get warned about undefined steps and

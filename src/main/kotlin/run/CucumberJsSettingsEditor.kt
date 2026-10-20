@@ -18,7 +18,7 @@ class CucumberJsSettingsEditor(private val project: Project) : SettingsEditor<Cu
     private val packageField = directoryField()
     private val workingDirField = directoryField()
     private val featureField = TextFieldWithBrowseButton().apply {
-        addBrowseFolderListener(project, FileChooserDescriptorFactory.createSingleFileDescriptor("feature"))
+        addBrowseFolderListener(project, FileChooserDescriptorFactory.createSingleFileOrFolderDescriptor())
     }
     private val lineField = JBTextField()
     private val tagsField = JBTextField()
