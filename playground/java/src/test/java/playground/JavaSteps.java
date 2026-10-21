@@ -19,6 +19,11 @@ public class JavaSteps {
         greeting = requireNonNull(greeting).toUpperCase();
     }
 
+    // Same text as a step in js/features/step_definitions/status_steps.js, for the mixed-project repro
+    @Given("a passing step")
+    public void aPassingStep() {
+    }
+
     @Then("the Java greeting is {string}")
     public void theJavaGreetingIs(String expected) {
         if (!expected.equals(greeting)) throw new AssertionError("Expected " + expected + " but was " + greeting);

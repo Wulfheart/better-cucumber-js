@@ -8,17 +8,7 @@ import com.intellij.openapi.editor.Document
 import com.intellij.psi.PsiDirectory
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
-import com.intellij.psi.PsiFile
 import com.intellij.psi.PsiManager
-import com.intellij.openapi.module.Module
-import com.intellij.testFramework.ExtensionTestUtil
-import org.jetbrains.plugins.cucumber.BDDFrameworkType
-import org.jetbrains.plugins.cucumber.CucumberJvmExtensionPoint
-import org.jetbrains.plugins.cucumber.StepDefinitionCreator
-import org.jetbrains.plugins.cucumber.psi.GherkinFile
-import org.jetbrains.plugins.cucumber.steps.AbstractCucumberExtension
-import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition
-import com.intellij.openapi.fileTypes.PlainTextFileType
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 
 class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
@@ -179,75 +169,51 @@ class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
         assertSame(leaf, fromContext(leaf).sourceElement)
     }
 
-    fun testReplacesOtherRunnersWhenStepsAreInJs() {
+    fun testReplacesOtherRunnersForFeatureFiles() {
         configureProject()
-        myFixture.addFileToProject("app/features/step_definitions/steps.js",
-            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
         val self = fromContext(elementAt("Scenario Outline:"))
         assertTrue(self.shouldReplace(fromContext(elementAt("Feature:"))))
     }
 
-    fun testKeepsOtherRunnersWithoutJsSteps() {
-        configureProject()
-        val self = fromContext(elementAt("Scenario Outline:"))
-        assertFalse(self.shouldReplace(fromContext(elementAt("Feature:"))))
-    }
-
     fun testKeepsOtherRunnersForDirectories() {
         configureProject()
-        myFixture.addFileToProject("app/features/step_definitions/steps.js",
-            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
         val self = fromContext(directory("app/features"))
         assertFalse(self.shouldReplace(fromContext(elementAt("Feature:"))))
     }
 
-    /** Stands in for Cucumber for Java: resolves "Given a calculator" to a plain text file. */
-    private fun registerOtherRunnerDefining(step: String) {
-        val file = myFixture.addFileToProject("other/steps.txt", step)
-        val definition = object : AbstractStepDefinition(file) {
-            override fun getVariableNames(): List<String> = emptyList()
-            override fun getCucumberRegexFromElement(element: PsiElement?): String = step
-        }
-        val extension = object : AbstractCucumberExtension() {
-            override fun isStepLikeFile(child: PsiElement): Boolean = child == file
-            override fun isWritableStepLikeFile(child: PsiElement): Boolean = false
-            override fun getStepFileType(): BDDFrameworkType = BDDFrameworkType(PlainTextFileType.INSTANCE)
-            override fun getStepDefinitionCreator(): StepDefinitionCreator = throw UnsupportedOperationException()
-            override fun loadStepsFor(module: Module): List<AbstractStepDefinition> = listOf(definition)
-            override fun getStepDefinitionContainers(featureFile: GherkinFile): Collection<PsiFile> = listOf(file)
-        }
-        ExtensionTestUtil.addExtensions(CucumberJvmExtensionPoint.EP_NAME, listOf(extension), testRootDisposable)
+    fun testNoConfigurationBelowJvmBuildFile() {
+        // A Java module below the cucumber-js installation belongs to Cucumber for Java
+        myFixture.addFileToProject("app/node_modules/@cucumber/cucumber/package.json", "{}")
+        myFixture.addFileToProject("app/java/pom.xml", "<project/>")
+        myFixture.copyFileToProject("calculator.feature", "app/java/src/test/resources/calculator.feature")
+        myFixture.configureFromTempProjectFile("app/java/src/test/resources/calculator.feature")
+        assertFalse(CucumberJsTargets.isCucumberJsFeature(myFixture.file.virtualFile))
+        assertNull(createFrom(elementAt("Scenario Outline:")))
     }
 
-    fun testStepLanguage() {
-        configureProject()
-        assertEquals(StepLanguage.NONE, CucumberJsTargets.stepLanguage(elementAt("Feature:")))
-        myFixture.addFileToProject("app/features/step_definitions/steps.js",
-            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
-        assertEquals(StepLanguage.JS, CucumberJsTargets.stepLanguage(elementAt("Feature:")))
+    fun testHoistedInstallation() {
+        // A workspace root holds node_modules; js/ declares @cucumber/cucumber, java/ is a Maven module next to it
+        myFixture.addFileToProject("repo/node_modules/@cucumber/cucumber/package.json", "{}")
+        myFixture.addFileToProject("repo/js/package.json", """{ "devDependencies": { "@cucumber/cucumber": "^13.3.0" } }""")
+        myFixture.addFileToProject("repo/java/build.gradle.kts", "")
+        val javaFeature = myFixture.copyFileToProject("calculator.feature", "repo/java/calculator.feature")
+        assertFalse(CucumberJsTargets.isCucumberJsFeature(javaFeature))
+
+        myFixture.copyFileToProject("calculator.feature", "repo/js/features/calculator.feature")
+        myFixture.configureFromTempProjectFile("repo/js/features/calculator.feature")
+        assertTrue(CucumberJsTargets.isCucumberJsFeature(myFixture.file.virtualFile))
+        assertEquals(myFixture.findFileInTempDir("repo").path, createFrom(elementAt("Scenario Outline:"))!!.workingDir)
     }
 
-    fun testStepsOfAnotherRunner() {
-        configureProject()
-        registerOtherRunnerDefining("a calculator")
-        assertEquals(StepLanguage.OTHER, CucumberJsTargets.stepLanguage(elementAt("Feature:")))
+    fun testPackageJsonBesideBuildFileWins() {
+        myFixture.addFileToProject("app/package.json", """{ "devDependencies": { "@cucumber/cucumber": "^13.3.0" } }""")
+        myFixture.addFileToProject("app/pom.xml", "<project/>")
+        assertTrue(CucumberJsTargets.isCucumberJsFeature(myFixture.addFileToProject("app/a.feature", "Feature: A\n").virtualFile))
     }
 
-    fun testStepsBackForAnotherRunnersSteps() {
-        configureProject()
-        registerOtherRunnerDefining("a calculator")
-        val self = fromContext(elementAt("Scenario Outline:"))
-        val other = fromContext(elementAt("Feature:"))
-        assertFalse(self.isPreferredTo(other))
-        assertFalse(self.shouldReplace(other))
-        // Directories are left to the user's choice
-        assertTrue(fromContext(directory("app/features")).isPreferredTo(other))
-    }
-
-    fun testPreferredWithJsSteps() {
-        configureProject()
-        myFixture.addFileToProject("app/features/step_definitions/steps.js",
-            "const { Given } = require('@cucumber/cucumber')\n\nGiven('a calculator', function () {})\n")
-        assertTrue(fromContext(elementAt("Scenario Outline:")).isPreferredTo(fromContext(elementAt("Feature:"))))
+    fun testPackageJsonWithoutCucumberDoesNotDecide() {
+        myFixture.addFileToProject("app/pom.xml", "<project/>")
+        myFixture.addFileToProject("app/web/package.json", """{ "devDependencies": { "mocha": "^10.0.0" } }""")
+        assertFalse(CucumberJsTargets.isCucumberJsFeature(myFixture.addFileToProject("app/web/a.feature", "Feature: A\n").virtualFile))
     }
 }

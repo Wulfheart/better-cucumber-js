@@ -1,0 +1,8 @@
+{
+  "name": "better-cucumber-js-playground-root",
+  "private": true,
+  "description": "Optional install of @cucumber/cucumber above java/, like a workspace that hoists it to the repository root. Only for the mixed-project repro; see README.md",
+  "devDependencies": {
+    "@cucumber/cucumber": "^13.3.0"
+  }
+}

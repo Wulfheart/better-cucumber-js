@@ -13,7 +13,8 @@ import org.jetbrains.plugins.cucumber.psi.GherkinTokenTypes
 
 /**
  * Run/debug gutter icons on the leaf tokens that start a runnable block: the `Feature:` keyword,
- * scenario / outline keywords, and the leading pipe of each Examples data row.
+ * scenario / outline keywords, and the leading pipe of each Examples data row. Only in feature files that belong to
+ * Cucumber.js ([CucumberJsTargets.isCucumberJsFeature]); other runners keep Gherkin's own icons.
  */
 class CucumberJsRunLineMarkerContributor : RunLineMarkerContributor(), DumbAware {
     override fun getInfo(element: PsiElement): Info? {
@@ -42,6 +43,7 @@ class CucumberJsRunLineMarkerContributor : RunLineMarkerContributor(), DumbAware
                 CucumberJsTargets.exampleRow(parent) === parent
             else -> false
         }
-        return if (isRunnableLeaf) CucumberJsTargets.find(parent) else null
+        if (!isRunnableLeaf) return null
+        return CucumberJsTargets.find(parent)?.takeIf { CucumberJsTargets.isCucumberJsFeature(it.file) }
     }
 }

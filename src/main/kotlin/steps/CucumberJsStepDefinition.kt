@@ -2,6 +2,7 @@ package com.wulfindustries.plugins.steps
 
 import com.intellij.lang.javascript.psi.JSCallExpression
 import com.intellij.psi.PsiElement
+import com.wulfindustries.plugins.run.CucumberJsTargets
 import org.jetbrains.plugins.cucumber.CucumberUtil
 import org.jetbrains.plugins.cucumber.ParameterTypeManager
 import org.jetbrains.plugins.cucumber.steps.AbstractStepDefinition
@@ -15,6 +16,15 @@ class CucumberJsStepDefinition(
 ) : AbstractStepDefinition(call) {
     private val stepPattern: StepPattern?
         get() = (element as? JSCallExpression)?.let(CucumberJsSupportCode::stepPattern)
+
+    /**
+     * Steps in feature files that belong to another runner ([CucumberJsTargets.isCucumberJsFeature]) never match, so a
+     * step text also defined in e.g. Java isn't ambiguous there. Gherkin checks this for every step it resolves.
+     */
+    override fun supportsStep(step: PsiElement): Boolean {
+        val file = step.containingFile?.originalFile?.virtualFile ?: return true
+        return CucumberJsTargets.isCucumberJsFeature(file)
+    }
 
     override fun getVariableNames(): List<String> =
         (element as? JSCallExpression)?.let(CucumberJsSupportCode::callback)

@@ -4,6 +4,7 @@ import com.intellij.lang.annotation.HighlightSeverity
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.jetbrains.plugins.cucumber.inspections.CucumberStepInspection
+import org.jetbrains.plugins.cucumber.psi.GherkinFile
 import org.jetbrains.plugins.cucumber.psi.GherkinStep
 import org.jetbrains.plugins.cucumber.steps.reference.CucumberStepReference
 
@@ -74,6 +75,15 @@ class CucumberJsStepNavigationTest : BasePlatformTestCase() {
     }
 
     fun testIgnoresNodeModules() = assertUndefined("Given a step from node_modules")
+
+    fun testFeatureOfAnotherRunnerSeesNoJsSteps() {
+        // Below a JVM build file the feature belongs to Cucumber for Java, so JS step texts don't make it ambiguous
+        myFixture.addFileToProject("java/pom.xml", "<project/>")
+        val feature = myFixture.addFileToProject("java/java.feature", "Feature: F\n  Scenario: S\n    Given a calculator\n")
+        myFixture.configureFromExistingVirtualFile(feature.virtualFile)
+        assertEquals(emptyList<String>(), definitionsOf(step("a calculator")))
+        assertEmpty(CucumberJsExtension().getStepDefinitionContainers(myFixture.file as GherkinFile))
+    }
 
     fun testOnlyUndefinedStepsAreReported() {
         myFixture.enableInspections(CucumberStepInspection::class.java)

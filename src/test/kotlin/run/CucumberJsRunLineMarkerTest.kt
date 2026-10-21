@@ -40,6 +40,15 @@ class CucumberJsRunLineMarkerTest : BasePlatformTestCase() {
         )
     }
 
+    fun testNoMarkersInFeaturesOfAnotherRunner() {
+        // Below a JVM build file Gherkin's own markers (and Cucumber for Java) take over
+        myFixture.addFileToProject("java/pom.xml", "<project/>")
+        myFixture.copyFileToProject("calculator.feature", "java/calculator.feature")
+        val file = myFixture.configureFromTempProjectFile("java/calculator.feature")
+        val contributor = CucumberJsRunLineMarkerContributor()
+        assertEmpty(PsiTreeUtil.collectElements(file) { it.firstChild == null && contributor.getInfo(it) != null }.toList())
+    }
+
     fun testMarkerHasRunAndDebugActions() {
         val file = myFixture.configureByFile("calculator.feature")
         val featureKeyword = PsiTreeUtil.collectElements(file) { it.firstChild == null && it.text == "Feature" }.single()

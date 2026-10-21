@@ -26,6 +26,7 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
             return true
         }
         val target = context.psiLocation?.let(CucumberJsTargets::find) ?: return false
+        if (!CucumberJsTargets.isCucumberJsFeature(target.file)) return false
         if (!setupLocation(configuration, target.file)) return false
         configuration.line = target.line
         configuration.scenarioPath = if (target.isFeature) null else ScenarioPath.of(target.element)
@@ -37,22 +38,12 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
     }
 
     /**
-     * Cucumber for Java accepts every feature file in a module with cucumber-java on its classpath. Replace it (and any
-     * other runner) where the feature's steps are implemented in JS/TS.
+     * Cucumber for Java accepts every feature file in a module with cucumber-java on its classpath. Ours only exists for
+     * feature files that belong to Cucumber.js ([CucumberJsTargets.isCucumberJsFeature]), so replace it (and any other
+     * runner) there. Directories keep both entries.
      */
-    override fun shouldReplace(self: ConfigurationFromContext, other: ConfigurationFromContext): Boolean {
-        val element = self.sourceElement
-        return element !is PsiDirectory && CucumberJsTargets.stepLanguage(element) == StepLanguage.JS
-    }
-
-    /**
-     * Step back where the feature's steps are implemented in another language, e.g. Java below a directory that also
-     * has `@cucumber/cucumber` installed, so that runner runs them. Directories and undefined steps keep both entries.
-     */
-    override fun isPreferredConfiguration(self: ConfigurationFromContext, other: ConfigurationFromContext): Boolean {
-        val element = self.sourceElement
-        return element is PsiDirectory || CucumberJsTargets.stepLanguage(element) != StepLanguage.OTHER
-    }
+    override fun shouldReplace(self: ConfigurationFromContext, other: ConfigurationFromContext): Boolean =
+        self.sourceElement !is PsiDirectory
 
     override fun isConfigurationFromContext(
         configuration: CucumberJsRunConfiguration,
@@ -62,6 +53,7 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
             return configuration.line == null && FileUtil.pathsEqual(configuration.featurePath, dir.virtualFile.path)
         }
         val target = context.psiLocation?.let(CucumberJsTargets::find) ?: return false
+        if (!CucumberJsTargets.isCucumberJsFeature(target.file)) return false
         if (!FileUtil.pathsEqual(configuration.featurePath, target.file.path)) return false
         // By name where possible: the line is stale once lines above the scenario were added or removed
         val path = configuration.scenarioPath

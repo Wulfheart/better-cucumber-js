@@ -1,8 +1,8 @@
 package com.wulfindustries.plugins.run
 
-import com.intellij.lang.javascript.JavascriptLanguage
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
@@ -16,11 +16,9 @@ import org.jetbrains.plugins.cucumber.psi.GherkinFile
 import org.jetbrains.plugins.cucumber.psi.GherkinFileType
 import org.jetbrains.plugins.cucumber.psi.GherkinScenario
 import org.jetbrains.plugins.cucumber.psi.GherkinScenarioOutline
-import org.jetbrains.plugins.cucumber.psi.GherkinStep
 import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 import org.jetbrains.plugins.cucumber.psi.GherkinTokenTypes
-import org.jetbrains.plugins.cucumber.steps.reference.CucumberStepReference
 
 /**
  * What a gutter icon or context action runs: a whole feature file ([line] is `null`),
@@ -36,11 +34,10 @@ data class CucumberJsTarget(
     val url: String get() = CucumberJsLocations.url(file.path, line)
 }
 
-/** The language a feature's steps are implemented in; [NONE] when no step resolves. */
-enum class StepLanguage { JS, OTHER, NONE }
-
 object CucumberJsTargets {
     private const val CUCUMBER_PACKAGE = "node_modules/@cucumber/cucumber"
+    private const val CUCUMBER_DEPENDENCY = "\"@cucumber/cucumber\""
+    private val JVM_BUILD_FILES = listOf("pom.xml", "build.gradle", "build.gradle.kts")
 
     /** Resolves the innermost runnable target that contains [element], or `null` outside a `.feature` file. */
     fun find(element: PsiElement): CucumberJsTarget? {
@@ -78,25 +75,28 @@ object CucumberJsTargets {
     }
 
     /**
-     * Which language the steps of the feature file containing [element] are implemented in, as Gherkin resolves them
-     * across every installed Cucumber integration (ours and e.g. Cucumber for Java). A feature file belongs to one
-     * runner, so the whole file is checked, not just the clicked scenario. [StepLanguage.NONE] while indexing.
+     * Whether the feature file [file] belongs to Cucumber.js rather than another runner such as Cucumber for Java.
+     * Decided by where it sits, so that every feature file has exactly one runner and one set of step definitions.
+     * Walking up from it, the first of these decides: a `package.json` that declares `@cucumber/cucumber` or a
+     * `node_modules/@cucumber/cucumber` install makes it ours, a JVM build file makes it not (e.g. `java/pom.xml`
+     * below a workspace root that hoists `node_modules`). With none of them it's ours, as nothing claims it otherwise.
+     * Uses only the VFS, so it also works while indexing.
      */
-    fun stepLanguage(element: PsiElement): StepLanguage {
-        val file = element.containingFile as? GherkinFile ?: return StepLanguage.NONE
-        if (DumbService.isDumb(file.project)) return StepLanguage.NONE
-        var resolvedElsewhere = false
-        for (step in PsiTreeUtil.findChildrenOfType(file, GherkinStep::class.java)) {
-            val definitions = step.references.filterIsInstance<CucumberStepReference>()
-                .flatMap { it.resolveToDefinitions() }
-            for (definition in definitions) {
-                val language = definition.element?.language ?: continue
-                if (language.isKindOf(JavascriptLanguage)) return StepLanguage.JS
-                resolvedElsewhere = true
-            }
+    fun isCucumberJsFeature(file: VirtualFile): Boolean {
+        var dir = file.parent
+        while (dir != null) {
+            val current: VirtualFile = dir
+            if (declaresCucumber(current.findChild("package.json"))) return true
+            if (JVM_BUILD_FILES.any { current.findChild(it) != null }) return false
+            if (current.findFileByRelativePath(CUCUMBER_PACKAGE)?.isDirectory == true) return true
+            dir = current.parent
         }
-        return if (resolvedElsewhere) StepLanguage.OTHER else StepLanguage.NONE
+        return true
     }
+
+    private fun declaresCucumber(packageJson: VirtualFile?): Boolean =
+        packageJson != null && !packageJson.isDirectory &&
+            runCatching { CUCUMBER_DEPENDENCY in VfsUtilCore.loadText(packageJson) }.getOrDefault(false)
 
     fun cucumberPackageDir(workingDir: VirtualFile): VirtualFile? = workingDir.findFileByRelativePath(CUCUMBER_PACKAGE)
 
