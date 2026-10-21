@@ -1,0 +1,91 @@
+# GitHub Actions workflow for a snapshot prerelease of the current commit, triggered by hand
+# (Actions tab | Snapshot | Run workflow):
+# - Version it as `version` from gradle.properties plus the build time, e.g. 0.0.0-SNAPSHOT-2026-10-21-1530 (UTC),
+#   so the installed plugin shows when it was built.
+# - Run the 'check' task and build the plugin ZIP with that version.
+# - Create a GitHub prerelease tagged with that version, with the ZIP attached and the [Unreleased] changelog as notes.
+#
+# Releases created with GITHUB_TOKEN don't trigger other workflows, so release.yml doesn't publish snapshots to
+# JetBrains Marketplace. Install the ZIP with Settings | Plugins | Install Plugin from Disk.
+
+name: Snapshot
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}
+  cancel-in-progress: false
+
+jobs:
+
+  snapshot:
+    name: Snapshot prerelease
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+
+      # Free GitHub Actions Environment Disk Space
+      - name: Maximize Build Space
+        uses: jlumbroso/free-disk-space@v1.3.1
+        with:
+          tool-cache: false
+          large-packages: false
+
+      # Check out the current repository
+      - name: Fetch Sources
+        uses: actions/checkout@v7
+
+      # Set up the Java environment for the next steps
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: 21
+
+      # Setup Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: true
+
+      # The base version from gradle.properties plus the build time in UTC
+      - name: Snapshot Version
+        id: version
+        run: |
+          BASE=$(./gradlew properties --property version --quiet --console=plain | tail -n 1 | cut -f2- -d ' ')
+          echo "version=$BASE-SNAPSHOT-$(date -u +%Y-%m-%d-%H%M)" >> "$GITHUB_OUTPUT"
+          echo "title=$BASE snapshot of $(date -u '+%Y-%m-%d %H:%M') UTC" >> "$GITHUB_OUTPUT"
+
+      # Run tests and build the plugin ZIP with the snapshot version
+      - name: Build Plugin
+        run: ./gradlew check buildPlugin -Pversion=${{ steps.version.outputs.version }}
+
+      # Collect Tests Result of failed tests
+      - name: Collect Tests Result
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7
+        with:
+          name: tests-result
+          path: ${{ github.workspace }}/build/reports/tests
+
+      # Create the prerelease at the current commit, with the ZIP attached
+      - name: Create Prerelease
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+          TITLE: ${{ steps.version.outputs.title }}
+        run: |
+          RELEASE_NOTE="./build/tmp/release_note.txt"
+          mkdir -p "$(dirname "$RELEASE_NOTE")"
+          {
+            echo "Snapshot of commit $GITHUB_SHA."
+            echo
+            ./gradlew getChangelog --unreleased --no-header --quiet --console=plain
+          } > "$RELEASE_NOTE"
+
+          gh release create "$VERSION" ./build/distributions/*.zip \
+            --prerelease \
+            --target "$GITHUB_SHA" \
+            --title "$TITLE" \
+            --notes-file "$RELEASE_NOTE"

@@ -58,3 +58,5 @@ No `src/test` directory exists yet. Put tests under `src/test/kotlin`. Platform 
 ## Release flow
 
 On a push to `main`, `.github/workflows/build.yml` builds, tests, and verifies the plugin, then creates a draft GitHub release named after `version` in `gradle.properties`, using the `[Unreleased]` section of `CHANGELOG.md` as the notes. Publishing that draft triggers `release.yml`, which pushes the plugin to JetBrains Marketplace. That step needs the `PUBLISH_TOKEN`, `CERTIFICATE_CHAIN`, `PRIVATE_KEY`, and `PRIVATE_KEY_PASSWORD` secrets. Keep `CHANGELOG.md`'s `[Unreleased]` section current, because release notes are generated from it.
+
+`.github/workflows/snapshot.yml` is triggered by hand (`workflow_dispatch`). It tests and builds the current commit as `<version>-SNAPSHOT-<yyyy-MM-dd-HHmm>` (UTC, passed as `-Pversion`) and creates a GitHub prerelease with that tag and the ZIP attached. Releases created with `GITHUB_TOKEN` don't trigger `release.yml`, so snapshots never reach Marketplace.
