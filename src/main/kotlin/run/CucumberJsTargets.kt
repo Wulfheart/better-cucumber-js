@@ -92,7 +92,7 @@ object CucumberJsTargets {
      * Uses only the VFS, so it also works while indexing. Gherkin asks this through
      * [com.wulfindustries.plugins.steps.CucumberJsStepDefinition.supportsStep] for every step × step definition, so the
      * answer is cached per directory until files are added or removed or the PSI changes (e.g. a `package.json` edit).
-     * An in-memory file with an [LightVirtualFile.getOriginalFile] (e.g. the Example Row tool window's Scenario tab) is
+     * An in-memory file with an [LightVirtualFile.getOriginalFile] (e.g. the Scenario Inspector's Scenario tab) is
      * judged by that file.
      */
     fun isCucumberJsFeature(project: Project, file: VirtualFile): Boolean {

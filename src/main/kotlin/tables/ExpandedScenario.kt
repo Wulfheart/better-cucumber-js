@@ -12,13 +12,14 @@ import org.jetbrains.plugins.cucumber.psi.GherkinFile
 import org.jetbrains.plugins.cucumber.psi.GherkinRule
 import org.jetbrains.plugins.cucumber.psi.GherkinScenario
 import org.jetbrains.plugins.cucumber.psi.GherkinScenarioOutline
+import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 import org.jetbrains.plugins.cucumber.psi.GherkinTokenTypes
 import org.jetbrains.plugins.cucumber.psi.i18n.JsonGherkinKeywordProvider
 
 /**
- * A Scenario Outline as cucumber-js runs it for one Examples row: the Backgrounds, then the outline's steps
- * with every `<header>` replaced by the row's value. [substituted] are the ranges of [text] that came from the row.
+ * A scenario as cucumber-js runs it: the Backgrounds, then its steps. For an Examples row, those are the outline's
+ * steps with every `<header>` replaced by the row's value; [substituted] are the ranges of [text] that came from the row.
  * Data tables flipped into `header: value` lines have their [keys] and [values], and [rowStarts] are the offsets of
  * their `# Row k` comments.
  */
@@ -36,46 +37,62 @@ data class ExpandedScenario(
 
         private const val NEWLINE = "⏎"
 
-        /** Data tables wider than [maxWidth] characters are flipped into `header: value` lines. */
-        fun of(row: GherkinTableRow, maxWidth: Int = Int.MAX_VALUE): ExpandedScenario? {
+        /**
+         * [target] as cucumber-js runs it: an Examples row with its values in the outline's placeholders, or a
+         * Scenario, or a Scenario Outline with its placeholders left as written. Data tables wider than [maxWidth]
+         * characters are flipped into `header: value` lines.
+         */
+        fun of(target: PsiElement, maxWidth: Int = Int.MAX_VALUE): ExpandedScenario? = when (target) {
+            is GherkinTableRow -> ofRow(target, maxWidth)
+            is GherkinScenarioOutline -> build(target, emptyMap(), null, maxWidth)
+            is GherkinScenario -> target.takeUnless { it.isBackground }?.let { build(it, emptyMap(), null, maxWidth) }
+            else -> null
+        }
+
+        private fun ofRow(row: GherkinTableRow, maxWidth: Int): ExpandedScenario? {
             val table = ExamplesTables.tableOf(row) ?: return null
             val rowIndex = ExamplesTables.rows(table).indexOf(row).takeIf { it > 0 } ?: return null
             val outline = PsiTreeUtil.getParentOfType(row, GherkinScenarioOutline::class.java) ?: return null
             val values = ExamplesTables.headers(table).zip(ExamplesTables.cells(row)).toMap()
-            val out = Builder(values, keywordCheck(row), maxWidth)
-
-            row.containingFile.text.lineSequence().takeWhile { it.isBlank() || it.trimStart().startsWith("#") }
-                .firstOrNull(LANGUAGE::containsMatchIn)?.let { out.line(it.trim()) }
             // `Examples: Fruit`, or `Examples` without a name
             val examples = ExamplesTables.examplesName(table.parent as GherkinExamplesBlock).removeSuffix(":")
-            out.line("# " + MyMessageBundle.message("tables.expanded.header", examples, rowIndex))
+            return build(outline, values, MyMessageBundle.message("tables.expanded.header", examples, rowIndex), maxWidth)
+        }
+
+        /** [scenario]'s text, with [values] in its placeholders and [header] as a comment on top. */
+        private fun build(scenario: GherkinStepsHolder, values: Map<String, String>, header: String?, maxWidth: Int): ExpandedScenario {
+            val out = Builder(values, keywordCheck(scenario), maxWidth)
+
+            scenario.containingFile.text.lineSequence().takeWhile { it.isBlank() || it.trimStart().startsWith("#") }
+                .firstOrNull(LANGUAGE::containsMatchIn)?.let { out.line(it.trim()) }
+            header?.let { out.line("# $it") }
 
             // Without a Feature, Gherkin parses no steps, and the steps wouldn't resolve to their definitions
-            val feature = PsiTreeUtil.getParentOfType(outline, GherkinFeature::class.java)
+            val feature = PsiTreeUtil.getParentOfType(scenario, GherkinFeature::class.java)
             val featureKeyword = feature?.node?.findChildByType(GherkinTokenTypes.FEATURE_KEYWORD)?.text ?: "Feature"
             out.line("$featureKeyword: ${feature?.featureName.orEmpty()}".trimEnd())
             out.line("")
 
-            for (background in backgrounds(outline)) {
+            for (background in backgrounds(scenario)) {
                 reindent(background).forEach { out.line(if (it.isBlank()) it else INDENT + it) }
                 out.line("")
             }
 
             // Not scenarioKeyword: with tags above the keyword, that is the first tag
-            out.text("$INDENT${CucumberJsTargets.anchorOf(outline).text}: ")
-            out.substituted(outline.scenarioName)
+            out.text("$INDENT${CucumberJsTargets.anchorOf(scenario).text}: ")
+            out.substituted(scenario.scenarioName)
             out.line("")
-            for (step in outline.steps) out.step(reindent(step).map { INDENT + INDENT + it })
+            for (step in scenario.steps) out.step(reindent(step).map { INDENT + INDENT + it })
             return ExpandedScenario(out.result.toString().trimEnd() + "\n", out.ranges, out.rowStarts, out.flippedKeys, out.flippedValues)
         }
 
         /**
-         * Whether a line would start with a Gherkin keyword (or a tag, comment, table or doc string) in [row]'s
+         * Whether a line would start with a Gherkin keyword (or a tag, comment, table or doc string) in [element]'s
          * language. Such a flipped table line would change how the text parses, so the steps after it wouldn't resolve.
          */
-        private fun keywordCheck(row: GherkinTableRow): (String) -> Boolean {
-            val language = (row.containingFile as? GherkinFile)?.localeLanguage ?: "en"
-            val provider = JsonGherkinKeywordProvider.getKeywordProvider(row)
+        private fun keywordCheck(element: PsiElement): (String) -> Boolean {
+            val language = (element.containingFile as? GherkinFile)?.localeLanguage ?: "en"
+            val provider = JsonGherkinKeywordProvider.getKeywordProvider(element)
             val keywords = provider.getAllKeywords(language)
             return { line ->
                 val text = line.trimStart()
@@ -87,10 +104,10 @@ data class ExpandedScenario(
         }
 
         /** The feature's Background, then the enclosing Rule's: the order cucumber-js runs them in. */
-        private fun backgrounds(outline: GherkinScenarioOutline): List<GherkinScenario> {
+        private fun backgrounds(scenario: GherkinStepsHolder): List<GherkinScenario> {
             val containers = listOfNotNull(
-                PsiTreeUtil.getParentOfType(outline, GherkinFeature::class.java),
-                PsiTreeUtil.getParentOfType(outline, GherkinRule::class.java),
+                PsiTreeUtil.getParentOfType(scenario, GherkinFeature::class.java),
+                PsiTreeUtil.getParentOfType(scenario, GherkinRule::class.java),
             )
             return containers.flatMap { container ->
                 PsiTreeUtil.getChildrenOfTypeAsList(container, GherkinScenario::class.java).filter { it.isBackground }

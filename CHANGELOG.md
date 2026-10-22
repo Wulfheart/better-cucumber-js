@@ -20,7 +20,7 @@
 - Rerunning a scenario or example row, from the test runner or its run configuration, still finds it after lines were added or removed in the feature file
 - Examples tables: each column gets its own color, and the column at the caret is highlighted in every row; both can be turned off in Settings | Languages & Frameworks | Cucumber.js Tables
 - Breadcrumbs for `.feature` files, down to the Examples row and the column (header name) at the caret
-- Example Row tool window: shows the Examples row at the caret as header and value pairs, compares it with a pinned row, and edits values in place
-- The Example Row tool window runs or debugs the shown row, and its Scenario tab shows the scenario with the row's values filled in
-- In the Example Row tool window's Scenario tab, Ctrl+click on a step opens its step definition, and data tables too wide for the tab are shown as `header: value` lines instead of wrapping
-- The Example Row tool window also shows the example row that is being run, and is empty outside Examples rows; it can select the row in the editor, keeps one pinned row per Scenario Outline, jumps to the selected cell only when "Jump to cell on selection" is on, and writes edited values to the feature file as you type
+- Scenario Inspector tool window: its Scenario tab shows the scenario at the caret as cucumber-js runs it, after the Backgrounds and with the values of an Examples row filled in; its Example Values tab shows the Examples row at the caret as header and value pairs, compares it with a pinned row, and edits values in place
+- The Scenario Inspector runs or debugs the shown scenario or Examples row
+- In the Scenario Inspector's Scenario tab, Ctrl+click on a step opens its step definition, and data tables too wide for the tab are shown as `header: value` lines instead of wrapping
+- The Scenario Inspector also shows the scenario or example row that is being run, and is empty on a Feature, Rule or Background; it can select the row in the editor, keeps one pinned row per Scenario Outline, jumps to the selected cell only when "Jump to cell on selection" is on, and writes edited values to the feature file as you type

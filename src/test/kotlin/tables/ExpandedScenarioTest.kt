@@ -12,7 +12,9 @@ import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import com.wulfindustries.plugins.run.CucumberJsRunConfiguration
 import com.wulfindustries.plugins.run.ScenarioPath
+import org.jetbrains.plugins.cucumber.psi.GherkinScenario
 import org.jetbrains.plugins.cucumber.psi.GherkinStep
+import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 import org.jetbrains.plugins.cucumber.steps.reference.CucumberStepReference
 
@@ -99,6 +101,56 @@ class ExpandedScenarioTest : BasePlatformTestCase() {
             "# language: de\n# Beispiele › Example #1\nFunktionalität: Laden\n\n  Szenariogrundriss: Kaufen\n    Angenommen ich kaufe Apfel\n",
             expanded.text,
         )
+    }
+
+    fun testPlainScenarioAndOutlineWithoutRow() {
+        val text = """
+            Feature: Shop
+              Background:
+                Given a shop
+
+              Scenario: Browse
+                Given the users:
+                  | name  | email             | role  |
+                  | alice | alice@example.com | admin |
+                Then <nothing> is replaced
+
+              Scenario Outline: Order <item>
+                Given I order <item>
+
+                Examples:
+                  | item  |
+                  | apple |
+        """.trimIndent()
+        val file = myFixture.configureByText("plain.feature", text)
+        fun scenario(name: String) = PsiTreeUtil.findChildrenOfType(file, GherkinStepsHolder::class.java).single { it.scenarioName == name }
+
+        val plain = ExpandedScenario.of(scenario("Browse"), maxWidth = 30)!!
+        assertEquals(
+            """
+            Feature: Shop
+
+              Background:
+                Given a shop
+
+              Scenario: Browse
+                Given the users:
+                  # Row 1
+                  name:   alice
+                  email:  alice@example.com
+                  role:   admin
+                Then <nothing> is replaced
+            """.trimIndent() + "\n",
+            plain.text,
+        )
+        assertEmpty(plain.substituted)
+
+        val outline = ExpandedScenario.of(scenario("Order <item>"))!!
+        assertEquals(
+            "Feature: Shop\n\n  Background:\n    Given a shop\n\n  Scenario Outline: Order <item>\n    Given I order <item>\n",
+            outline.text,
+        )
+        assertNull(ExpandedScenario.of(PsiTreeUtil.findChildrenOfType(file, GherkinScenario::class.java).single { it.isBackground }))
     }
 
     fun testHeaderRowHasNoExpansion() {
@@ -247,11 +299,23 @@ class ExpandedScenarioTest : BasePlatformTestCase() {
         val file = myFixture.configureFromTempProjectFile("app/features/calculator.feature")
         val row = ExamplesTables.positionAt(file, file.text.indexOf("| 2 |"))!!.row
 
-        val settings = ExampleRowRunner.settingsFor(row)!!
+        val settings = ScenarioRunner.settingsFor(row)!!
 
         val configuration = settings.configuration as CucumberJsRunConfiguration
         assertEquals(17, configuration.line)
         assertEquals(ScenarioPath.of(row), configuration.scenarioPath)
+    }
+
+    fun testRunnerCreatesThePlainScenariosRunConfiguration() {
+        myFixture.addFileToProject("app/node_modules/@cucumber/cucumber/package.json", "{}")
+        myFixture.copyFileToProject("calculator.feature", "app/features/calculator.feature")
+        val file = myFixture.configureFromTempProjectFile("app/features/calculator.feature")
+        val scenario = PsiTreeUtil.findChildrenOfType(file, GherkinScenario::class.java).single { it.scenarioName == "Adding two numbers" }
+
+        val configuration = ScenarioRunner.settingsFor(scenario)!!.configuration as CucumberJsRunConfiguration
+
+        assertEquals(7, configuration.line)
+        assertEquals(ScenarioPath.of(scenario), configuration.scenarioPath)
     }
 
     override fun getTestDataPath(): String = "src/test/testData/features"

@@ -4,7 +4,7 @@ import com.wulfindustries.plugins.MyMessageBundle
 import org.jetbrains.plugins.cucumber.psi.GherkinExamplesBlock
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 
-/** One column of an Examples row, shown as a line in the Example Row tool window. */
+/** One column of an Examples row, shown as a line in the Scenario Inspector's Example Values tab. */
 data class RecordLine(val column: Int, val header: String, val pinned: String?, val value: String) {
     val differs: Boolean get() = pinned != null && pinned != value
 }

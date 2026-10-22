@@ -53,13 +53,13 @@ import javax.swing.event.DocumentEvent
 import javax.swing.table.AbstractTableModel
 import javax.swing.table.TableCellRenderer
 
-class ExampleRowToolWindowFactory : ToolWindowFactory, DumbAware {
+class ScenarioInspectorToolWindowFactory : ToolWindowFactory, DumbAware {
     override suspend fun isApplicableAsync(project: Project): Boolean = smartReadAction(project) {
         FileTypeIndex.containsFileOfType(GherkinFileType.INSTANCE, GlobalSearchScope.projectScope(project))
     }
 
     override fun createToolWindowContent(project: Project, toolWindow: ToolWindow) {
-        val selection = ExampleRowSelection(project)
+        val selection = ScenarioSelection(project)
         Disposer.register(toolWindow.disposable, selection)
         val contents = ContentFactory.getInstance()
         val values = ExampleValuesPanel(project, selection)
@@ -76,38 +76,38 @@ class ExampleRowToolWindowFactory : ToolWindowFactory, DumbAware {
 /** Space between the tabs' text and the left and right edges of the tool window. */
 internal const val HORIZONTAL_PADDING = 10
 
-/** A toolbar with Run, Debug and Locate for the selected row, followed by [actions]. */
-internal fun SimpleToolWindowPanel.installToolbar(project: Project, selection: ExampleRowSelection, vararg actions: AnAction) {
+/** A toolbar with Run, Debug and Locate for the selected scenario or row, followed by [actions]. */
+internal fun SimpleToolWindowPanel.installToolbar(project: Project, selection: ScenarioSelection, vararg actions: AnAction) {
     val group = DefaultActionGroup()
-    group.add(RunExampleAction(project, selection, DefaultRunExecutor.getRunExecutorInstance(), "tables.tool.window.run"))
-    group.add(RunExampleAction(project, selection, DefaultDebugExecutor.getDebugExecutorInstance(), "tables.tool.window.debug"))
-    group.add(LocateRowAction(selection))
+    group.add(RunScenarioAction(project, selection, DefaultRunExecutor.getRunExecutorInstance(), "tables.tool.window.run"))
+    group.add(RunScenarioAction(project, selection, DefaultDebugExecutor.getDebugExecutorInstance(), "tables.tool.window.debug"))
+    group.add(LocateAction(selection))
     if (actions.isNotEmpty()) group.add(Separator.getInstance())
     actions.forEach(group::add)
-    val toolbar = ActionManager.getInstance().createActionToolbar("CucumberJsExampleRow", group, true)
+    val toolbar = ActionManager.getInstance().createActionToolbar("CucumberJsScenarioInspector", group, true)
     toolbar.targetComponent = this
     setToolbar(toolbar.component)
 }
 
-private class RunExampleAction(
+private class RunScenarioAction(
     private val project: Project,
-    private val selection: ExampleRowSelection,
+    private val selection: ScenarioSelection,
     private val executor: Executor,
     textKey: String,
 ) : DumbAwareAction(MyMessageBundle.lazyMessage(textKey), MyMessageBundle.lazyMessage("$textKey.description"), executor.icon) {
     override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = selection.row != null
+        e.presentation.isEnabled = selection.target != null
     }
 
     override fun actionPerformed(e: AnActionEvent) {
-        selection.row?.let { ExampleRowRunner.run(project, it, executor) }
+        selection.target?.let { ScenarioRunner.run(project, it, executor) }
     }
 }
 
-/** Shows the selected row in the editor, with the icon of the Project view's "Select Opened File". */
-private class LocateRowAction(private val selection: ExampleRowSelection) : DumbAwareAction(
+/** Shows the selected scenario or row in the editor, with the icon of the Project view's "Select Opened File". */
+private class LocateAction(private val selection: ScenarioSelection) : DumbAwareAction(
     MyMessageBundle.lazyMessage("tables.tool.window.locate"),
     MyMessageBundle.lazyMessage("tables.tool.window.locate.description"),
     AllIcons.General.Locate,
@@ -115,7 +115,7 @@ private class LocateRowAction(private val selection: ExampleRowSelection) : Dumb
     override fun getActionUpdateThread() = ActionUpdateThread.EDT
 
     override fun update(e: AnActionEvent) {
-        e.presentation.isEnabled = selection.row != null
+        e.presentation.isEnabled = selection.target != null
     }
 
     override fun actionPerformed(e: AnActionEvent) = selection.locate()
@@ -126,7 +126,7 @@ private class LocateRowAction(private val selection: ExampleRowSelection) : Dumb
  * Values can be edited in place. With "Jump to cell on selection", selecting a line moves the editor caret to that
  * cell. Each Scenario Outline keeps its own pinned row.
  */
-private class ExampleValuesPanel(private val project: Project, private val selection: ExampleRowSelection) :
+private class ExampleValuesPanel(private val project: Project, private val selection: ScenarioSelection) :
     SimpleToolWindowPanel(true, true), Disposable {
     private val model = RecordTableModel()
     private val table = JBTable(model)
@@ -143,7 +143,7 @@ private class ExampleValuesPanel(private val project: Project, private val selec
 
     init {
         table.setShowGrid(false)
-        table.emptyText.text = MyMessageBundle.message("tables.tool.window.empty")
+        table.emptyText.text = MyMessageBundle.message("tables.tool.window.values.empty")
         table.selectionModel.selectionMode = ListSelectionModel.SINGLE_SELECTION
         table.putClientProperty("terminateEditOnFocusLost", true)
         table.setDefaultRenderer(Any::class.java, RecordCellRenderer())

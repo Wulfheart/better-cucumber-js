@@ -25,7 +25,7 @@ class TableColorSettingsPage : ColorSettingsPage {
     override fun getDemoText(): String = """
         Scenario Outline: Ordering <item>
           Given I order <amount> <item>
-          # Example Row tool window, Scenario tab: Given I order <substituted>3</substituted> <substituted>apple</substituted>
+          # Scenario Inspector, Scenario tab: Given I order <substituted>3</substituted> <substituted>apple</substituted>
           Examples:
             | <c1>item</c1>   | <c2>amount</c2> | <current>   price   </current>| <c4>currency</c4> | <c5>shop</c5>   | <c6>note</c6>  | <c1>express</c1> |
             | <c1>apple</c1>  | <c2>3</c2>      | <current>   1.20    </current>| <c4>EUR</c4>      | <c5>Berlin</c5> | <c6>ripe</c6>  | <c1>yes</c1>     |

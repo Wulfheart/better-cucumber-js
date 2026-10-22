@@ -19,25 +19,34 @@ import com.intellij.openapi.fileEditor.FileEditorManagerListener
 import com.intellij.openapi.fileEditor.OpenFileDescriptor
 import com.intellij.openapi.project.Project
 import com.intellij.psi.PsiDocumentManager
+import com.intellij.psi.PsiElement
+import com.intellij.psi.PsiFile
 import com.intellij.psi.SmartPointerManager
 import com.intellij.psi.SmartPsiElementPointer
 import com.intellij.util.Alarm
 import com.wulfindustries.plugins.run.CucumberJsRunConfiguration
+import com.wulfindustries.plugins.run.CucumberJsTargets
 import org.jetbrains.plugins.cucumber.psi.GherkinFileType
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 
 /**
- * The Examples row the Example Row tool window shows, shared by its tabs. It follows the caret in `.feature` editors
- * and the example rows that get run; the caret anywhere else in a `.feature` file, or a run of anything but one
- * example row, clears it.
+ * What the Scenario Inspector shows, shared by its tabs: an Examples row, or else a runnable scenario (a Scenario, or
+ * a Scenario Outline away from its rows), the same thing its gutter icon would run. It follows the caret in `.feature`
+ * editors and the scenarios and example rows that get run. The caret elsewhere in a `.feature` file (Feature, Rule,
+ * Background), or a run of anything bigger than one scenario, clears it.
  */
-class ExampleRowSelection(private val project: Project) : Disposable {
+class ScenarioSelection(private val project: Project) : Disposable {
     private val alarm = Alarm(this)
     private val listeners = mutableListOf<() -> Unit>()
 
-    /** The editor whose caret moved, to read once the delay is over; `null` when only the row's text changed. */
+    /** The editor whose caret moved, to read once the delay is over; `null` when only the target's text changed. */
     private var caretEditor: Editor? = null
 
+    /** The shown Examples row or scenario. */
+    var target: SmartPsiElementPointer<out PsiElement>? = null
+        private set
+
+    /** [target] when it is an Examples row. */
     var row: SmartPsiElementPointer<GherkinTableRow>? = null
         private set
 
@@ -52,7 +61,7 @@ class ExampleRowSelection(private val project: Project) : Disposable {
         }, this)
         multicaster.addDocumentListener(object : DocumentListener {
             override fun documentChanged(event: DocumentEvent) {
-                val file = row?.virtualFile ?: return
+                val file = target?.virtualFile ?: return
                 if (FileDocumentManager.getInstance().getFile(event.document) == file) schedule()
             }
         }, this)
@@ -101,14 +110,17 @@ class ExampleRowSelection(private val project: Project) : Disposable {
         OpenFileDescriptor(project, target.first, target.second).navigate(false)
     }
 
-    /** Shows the selected row in the editor with the caret at the start of its line, like "Select Opened File". */
+    /**
+     * Shows the selected row, or the selected scenario's keyword line, in the editor with the caret at the start of
+     * the line, like "Select Opened File".
+     */
     fun locate() {
         val target = runReadActionBlocking {
-            val element = row?.element ?: return@runReadActionBlocking null
+            val element = target?.element ?: return@runReadActionBlocking null
             val file = element.containingFile ?: return@runReadActionBlocking null
             val document = PsiDocumentManager.getInstance(project).getDocument(file) ?: return@runReadActionBlocking null
             val virtualFile = file.virtualFile ?: return@runReadActionBlocking null
-            virtualFile to document.getLineNumber(element.textOffset)
+            virtualFile to document.getLineNumber(CucumberJsTargets.anchorOf(element).textOffset)
         } ?: return
         OpenFileDescriptor(project, target.first, target.second, 0).navigate(true)
     }
@@ -128,15 +140,14 @@ class ExampleRowSelection(private val project: Project) : Disposable {
             val file = PsiDocumentManager.getInstance(project).getPsiFile(editor.document) ?: return@runReadActionBlocking
             val offset = editor.caretModel.offset
             // The indent before a row belongs to the table, so the row's line is also found from its first character
-            val position = ExamplesTables.positionAt(file, offset) ?: firstCharacterOfLine(editor, offset)?.let { ExamplesTables.positionAt(file, it) }
+            val lineStart = firstCharacterOfLine(editor, offset)
+            val position = ExamplesTables.positionAt(file, offset) ?: lineStart?.let { ExamplesTables.positionAt(file, it) }
             val current = row?.element
             when {
-                position == null -> select(null, null)
-                !position.isHeader ->
-                    select(if (position.row == current) row else SmartPointerManager.createPointer(position.row), position.column)
+                position != null && !position.isHeader -> select(position.row, position.column)
                 // The header keeps the row of its own table, so the column can be picked there
-                current != null && ExamplesTables.tableOf(current) == position.table -> column = position.column
-                else -> select(null, null)
+                position != null && current != null && ExamplesTables.tableOf(current) == position.table -> column = position.column
+                else -> select(scenarioAt(file, offset) ?: lineStart?.let { scenarioAt(file, it) }, null)
             }
         }
     }
@@ -151,24 +162,33 @@ class ExampleRowSelection(private val project: Project) : Disposable {
 
     private fun followRun(env: ExecutionEnvironment) {
         val configuration = env.runProfile as? CucumberJsRunConfiguration
-        val found = runReadActionBlocking {
-            val line = configuration?.line ?: return@runReadActionBlocking null
-            val path = configuration.scenarioPath?.takeIf { it.row != null } ?: return@runReadActionBlocking null
-            path.copy(featurePath = configuration.featurePath).find(project, line) as? GherkinTableRow
-        }
-        // A caret move still waiting for the delay would replace the row that is being run
+        // A caret move still waiting for the delay would replace what is being run
         alarm.cancelAllRequests()
         caretEditor = null
-        when {
-            found == null -> select(null, null)
-            runReadActionBlocking { found != row?.element } -> select(SmartPointerManager.createPointer(found), null)
+        runReadActionBlocking {
+            val line = configuration?.line
+            val path = configuration?.scenarioPath
+            val found = if (line == null || path == null) null else path.copy(featurePath = configuration.featurePath).find(project, line)
+            // Found by line or by name, the element is the row or the scenario; anything else isn't one scenario
+            select(found?.let { CucumberJsTargets.exampleRow(it) ?: CucumberJsTargets.runnableScenario(it) }, null)
         }
         notifyListeners()
     }
 
-    private fun select(row: SmartPsiElementPointer<GherkinTableRow>?, column: Int?) {
-        this.row = row
+    /** Selects [element], a row or a scenario, keeping the pointer when it's already selected. Call in a read action. */
+    private fun select(element: PsiElement?, column: Int?) {
+        if (element == null || element != target?.element) {
+            target = element?.let { SmartPointerManager.createPointer(it) }
+        }
+        @Suppress("UNCHECKED_CAST")
+        row = target.takeIf { element is GherkinTableRow } as SmartPsiElementPointer<GherkinTableRow>?
         this.column = column
+    }
+
+    companion object {
+        /** The runnable scenario at [offset] of [file] (not a Background), or `null`. */
+        internal fun scenarioAt(file: PsiFile, offset: Int): PsiElement? =
+            file.findElementAt(offset)?.let(CucumberJsTargets::runnableScenario)
     }
 
     private fun notifyListeners() {

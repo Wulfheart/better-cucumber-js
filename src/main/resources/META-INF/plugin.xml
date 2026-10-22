@@ -21,7 +21,7 @@
         Jump from a step to its JavaScript or TypeScript step definition, get warned about undefined steps and
         create step definitions for them.<br>
         Large Examples tables stay readable: rainbow columns, the column at the caret highlighted in every row,
-        breadcrumbs down to the row and column, and an Example Row tool window to compare and edit rows.
+        breadcrumbs down to the row and column, and a Scenario Inspector tool window that shows a scenario as it runs, with the values of an Examples row filled in, and compares and edits rows.
         ]]></description>
 
     <!-- Product and plugin compatibility requirements.
@@ -50,8 +50,8 @@
         <additionalTextAttributes scheme="Darcula" file="colorSchemes/CucumberJsTablesDarcula.xml"/>
         <applicationConfigurable parentId="language" instance="com.wulfindustries.plugins.tables.CucumberJsTableConfigurable"
                                  id="com.wulfindustries.plugins.tables" key="tables.settings.name"/>
-        <toolWindow id="Example Row" anchor="right" secondary="true" icon="AllIcons.Nodes.DataTables"
-                    factoryClass="com.wulfindustries.plugins.tables.ExampleRowToolWindowFactory"/>
+        <toolWindow id="Scenario Inspector" anchor="right" secondary="true" icon="AllIcons.Actions.Preview"
+                    factoryClass="com.wulfindustries.plugins.tables.ScenarioInspectorToolWindowFactory"/>
     </extensions>
 
     <extensions defaultExtensionNs="org.jetbrains.plugins.cucumber.steps">

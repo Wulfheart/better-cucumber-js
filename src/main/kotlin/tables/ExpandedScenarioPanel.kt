@@ -32,15 +32,17 @@ import com.wulfindustries.plugins.MyMessageBundle
 import com.wulfindustries.plugins.run.CucumberJsTargets
 import org.jetbrains.plugins.cucumber.psi.GherkinFileType
 import org.jetbrains.plugins.cucumber.psi.GherkinHighlighter
+import org.jetbrains.plugins.cucumber.psi.GherkinScenarioOutline
 import java.awt.event.ComponentAdapter
 import java.awt.event.ComponentEvent
 
 /**
- * Shows the selected row's scenario as cucumber-js runs it, placeholders replaced by the row's values. The text is an
- * in-memory feature file standing in for the row's own ([linkTo]), so its steps resolve: Ctrl+click opens the
- * step definition. Data tables wider than the viewer are flipped into `header: value` lines.
+ * Shows the selected scenario as cucumber-js runs it ([ExpandedScenario]), for an Examples row with its placeholders
+ * replaced by the row's values. The text is an in-memory feature file standing in for the scenario's own ([linkTo]),
+ * so its steps resolve: Ctrl+click opens the step definition. Data tables wider than the viewer are flipped into
+ * `header: value` lines.
  */
-internal class ExpandedScenarioPanel(private val project: Project, private val selection: ExampleRowSelection) :
+internal class ExpandedScenarioPanel(private val project: Project, private val selection: ScenarioSelection) :
     SimpleToolWindowPanel(true, true), Disposable {
     private val file = scenarioFile()
     private val document = FileDocumentManager.getInstance().getDocument(file)!!
@@ -89,8 +91,11 @@ internal class ExpandedScenarioPanel(private val project: Project, private val s
     private fun refresh() {
         columns = visibleColumns()
         val expanded = runReadActionBlocking {
-            val row = selection.row?.element
-            row?.let { ExpandedScenario.of(it, columns) }?.also { linkTo(psiFile, row.containingFile) }
+            val target = selection.target?.element
+            target?.let { ExpandedScenario.of(it, columns) }?.also {
+                linkTo(psiFile, target.containingFile)
+                file.putUserData(PLACEHOLDERS, target is GherkinScenarioOutline)
+            }
         }
         body.removeAll()
         body.addToCenter(if (expanded == null) empty else editor.component)
@@ -139,6 +144,11 @@ internal class ExpandedScenarioPanel(private val project: Project, private val s
         fun isScenarioFile(file: PsiFile): Boolean = isScenarioFile(file.viewProvider.virtualFile)
 
         fun isScenarioFile(file: VirtualFile): Boolean = file.getUserData(SCENARIO_FILE) == true
+
+        private val PLACEHOLDERS = Key.create<Boolean>("cucumberjs.expandedScenarioPlaceholders")
+
+        /** Whether the scenario [file] shows an outline with its `<placeholders>` as written, not an Examples row. */
+        fun showsPlaceholders(file: PsiFile): Boolean = file.viewProvider.virtualFile.getUserData(PLACEHOLDERS) == true
 
         /**
          * Makes the steps of the in-memory [file] resolve as if they were in [original]: Gherkin looks step definitions
