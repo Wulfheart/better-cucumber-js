@@ -41,11 +41,11 @@ class CucumberMessagesTranslatorTest {
                 Given I have the number 1 @calculator.feature:14 [passed]
                 When I divide by zero @calculator.feature:15 [ignored: Undefined step: When I divide by zero]
               Adding many numbers @calculator.feature:17
-                1, 1, 2 @calculator.feature:24
+                Example #1 @calculator.feature:24
                   Given I have the number 1 @calculator.feature:24:1 [passed]
                   When I add 1 @calculator.feature:24:1 [passed]
                   Then the result is 2 @calculator.feature:24:1 [passed]
-                2, 2, 5 @calculator.feature:25
+                Example #2 @calculator.feature:25
                   Given I have the number 2 @calculator.feature:25:1 [passed]
                   When I add 2 @calculator.feature:25:1 [passed]
                   Then the result is 5 @calculator.feature:25:1 [failed: AssertionError: Expected values to be strictly equal:]
@@ -72,7 +72,7 @@ class CucumberMessagesTranslatorTest {
             .filter { it.attributes["metainfo"] == CucumberMessagesTranslator.CASE_METAINFO }
             .map { it.attributes["name"] }
         // The outline itself and the feature are not rerun units
-        assertEquals(listOf("Adding two numbers", "A failing addition", "An undefined step", "1, 1, 2", "2, 2, 5"), tagged)
+        assertEquals(listOf("Adding two numbers", "A failing addition", "An undefined step", "Example #1", "Example #2"), tagged)
     }
 
     @Test
@@ -91,7 +91,7 @@ class CucumberMessagesTranslatorTest {
             """
             Calculator @calculator.feature
               Adding many numbers @calculator.feature:17
-                2, 2, 5 @calculator.feature:25
+                Example #2 @calculator.feature:25
                   Given I have the number 2 @calculator.feature:25:1 [passed]
                   When I add 2 @calculator.feature:25:1 [passed]
                   Then the result is 5 @calculator.feature:25:1 [failed: AssertionError: Expected values to be strictly equal:]
@@ -200,14 +200,14 @@ class CucumberMessagesTranslatorTest {
                   When I add them @rules.feature:18 [passed]
                   Then the result is 15 @rules.feature:19 [passed]
                 Outline inside a Rule @rules.feature:21
-                  1, 11 @rules.feature:28
+                  Example #1 @rules.feature:28
                     Background @rules.feature:4
                       Given a calculator @rules.feature:5 [passed]
                       Given the number 10 @rules.feature:14 [passed]
                     Given the number 1 @rules.feature:28:1 [passed]
                     When I add them @rules.feature:28:1 [passed]
                     Then the result is 11 @rules.feature:28:1 [passed]
-                  2, 12 @rules.feature:29
+                  Example #2 @rules.feature:29
                     Background @rules.feature:4
                       Given a calculator @rules.feature:5 [passed]
                       Given the number 10 @rules.feature:14 [passed]
@@ -246,32 +246,32 @@ class CucumberMessagesTranslatorTest {
 
     @Test
     fun outlineShapes() {
-        // Examples tables get a node only when an outline has several; a row too wide for a name makes its whole table Example #k
+        // Examples tables get a node only when an outline has several; rows are always numbered Example #k
         assertEquals(
             """
             Scenario Outlines @outlines.feature
               Add <a> and <b> @outlines.feature:4
-                1, 2, 3 @outlines.feature:12
-                2, 2, 4 @outlines.feature:13
-                5, 5, 99 @outlines.feature:14
+                Example #1 @outlines.feature:12
+                Example #2 @outlines.feature:13
+                Example #3 @outlines.feature:14
               Scenario Template and Scenarios keywords are aliases @outlines.feature:16
-                8 @outlines.feature:23
+                Example #1 @outlines.feature:23
               Several named and tagged Examples tables @outlines.feature:25
                 Small numbers @outlines.feature:32
-                  1, 1, 1 @outlines.feature:34
-                  2, 3, 6 @outlines.feature:35
+                  Example #1 @outlines.feature:34
+                  Example #2 @outlines.feature:35
                 Large numbers @outlines.feature:38
-                  100, 100, 10000 @outlines.feature:40
+                  Example #1 @outlines.feature:40
                 Examples @outlines.feature:42
-                  0, 9, 0 @outlines.feature:44
+                  Example #1 @outlines.feature:44
               Placeholders inside step arguments @outlines.feature:46
-                1, 2, 3, 9 @outlines.feature:58
+                Example #1 @outlines.feature:58
               Duplicate rows produce identically named tests @outlines.feature:60
-                1 @outlines.feature:67
-                1 @outlines.feature:68
+                Example #1 @outlines.feature:67
+                Example #2 @outlines.feature:68
               Name without placeholders @outlines.feature:70
-                3 @outlines.feature:77
-                4 @outlines.feature:78
+                Example #1 @outlines.feature:77
+                Example #2 @outlines.feature:78
               No Examples at all (runs once with <n> unreplaced, so undefined) @outlines.feature:86
               A wide Examples row (every row of its table shown as Example #k in the test tree) @outlines.feature:89
                 Example #1 @outlines.feature:96
@@ -352,11 +352,11 @@ class CucumberMessagesTranslatorTest {
                 Given I have the number 1 @calculator.feature:14 [ignored: Not run]
                 When I divide by zero @calculator.feature:15 [ignored: Not run]
               Adding many numbers @calculator.feature:17 [ignored: Not run]
-                1, 1, 2 @calculator.feature:24 [ignored: Not run]
+                Example #1 @calculator.feature:24 [ignored: Not run]
                   Given I have the number 1 @calculator.feature:24:1 [ignored: Not run]
                   When I add 1 @calculator.feature:24:1 [ignored: Not run]
                   Then the result is 2 @calculator.feature:24:1 [ignored: Not run]
-                2, 2, 5 @calculator.feature:25 [ignored: Not run]
+                Example #2 @calculator.feature:25 [ignored: Not run]
                   Given I have the number 2 @calculator.feature:25:1 [ignored: Not run]
                   When I add 2 @calculator.feature:25:1 [ignored: Not run]
                   Then the result is 5 @calculator.feature:25:1 [ignored: Not run]

@@ -21,10 +21,6 @@ class GherkinIndex {
     ) {
         val children = mutableListOf<AstNode>()
 
-        /** Cell values of an Examples row. */
-        var cells: List<String> = emptyList()
-            internal set
-
         /** The name, or the keyword for nameless nodes such as an unnamed `Examples:` table. */
         val label: String get() = name.ifBlank { keyword.trim() }
 
@@ -65,11 +61,7 @@ class GherkinIndex {
                 scenario.array("examples")?.forEach { examples ->
                     val examplesObj = examples.asJsonObject
                     val examplesNode = add(examplesObj, Kind.EXAMPLES, scenarioNode) ?: return@forEach
-                    examplesObj.array("tableBody")?.forEach { row ->
-                        val rowObj = row.asJsonObject
-                        add(rowObj, Kind.ROW, examplesNode)?.cells =
-                            rowObj.array("cells")?.mapNotNull { it.asJsonObject.str("value") }.orEmpty()
-                    }
+                    examplesObj.array("tableBody")?.forEach { row -> add(row.asJsonObject, Kind.ROW, examplesNode) }
                 }
             }
             child.obj("rule")?.let { rule ->

@@ -190,14 +190,7 @@ class CucumberMessagesTranslator(private val baseDir: Path, private val scenario
             metainfo = CASE_METAINFO)
     }
 
-    /** A row's cell values, or `Example #k` for every row of an Examples table where any row is too wide for that. */
-    private fun rowName(row: GherkinIndex.AstNode): String {
-        val rows = row.parent?.children ?: listOf(row)
-        return if (rows.all { cellValues(it).length <= MAX_ROW_NAME_LENGTH }) cellValues(row)
-        else MyMessageBundle.message("test.tree.example", row.rowNumber)
-    }
-
-    private fun cellValues(row: GherkinIndex.AstNode): String = row.cells.joinToString(", ")
+    private fun rowName(row: GherkinIndex.AstNode): String = MyMessageBundle.message("test.tree.example", row.rowNumber)
 
     /** Adds a node for every pickle step of [testCase] under [parent]; background steps go into a Background suite. */
     private fun addSteps(parent: Node, testCase: TestCase, pickle: Pickle, out: MutableList<ServiceMessageBuilder>): StepNodes {
@@ -448,7 +441,6 @@ class CucumberMessagesTranslator(private val baseDir: Path, private val scenario
         const val CASE_METAINFO = "scenario"
 
         private const val ROOT_NODE_ID = 0
-        private const val MAX_ROW_NAME_LENGTH = 60
 
         // Envelope keys from the Cucumber Messages schema
         private val ENVELOPE_KEYS = listOf(
