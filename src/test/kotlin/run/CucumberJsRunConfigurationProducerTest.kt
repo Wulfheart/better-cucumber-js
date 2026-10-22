@@ -187,7 +187,7 @@ class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
         myFixture.addFileToProject("app/java/pom.xml", "<project/>")
         myFixture.copyFileToProject("calculator.feature", "app/java/src/test/resources/calculator.feature")
         myFixture.configureFromTempProjectFile("app/java/src/test/resources/calculator.feature")
-        assertFalse(CucumberJsTargets.isCucumberJsFeature(myFixture.file.virtualFile))
+        assertFalse(CucumberJsTargets.isCucumberJsFeature(project, myFixture.file.virtualFile))
         assertNull(createFrom(elementAt("Scenario Outline:")))
     }
 
@@ -197,23 +197,23 @@ class CucumberJsRunConfigurationProducerTest : BasePlatformTestCase() {
         myFixture.addFileToProject("repo/js/package.json", """{ "devDependencies": { "@cucumber/cucumber": "^13.3.0" } }""")
         myFixture.addFileToProject("repo/java/build.gradle.kts", "")
         val javaFeature = myFixture.copyFileToProject("calculator.feature", "repo/java/calculator.feature")
-        assertFalse(CucumberJsTargets.isCucumberJsFeature(javaFeature))
+        assertFalse(CucumberJsTargets.isCucumberJsFeature(project, javaFeature))
 
         myFixture.copyFileToProject("calculator.feature", "repo/js/features/calculator.feature")
         myFixture.configureFromTempProjectFile("repo/js/features/calculator.feature")
-        assertTrue(CucumberJsTargets.isCucumberJsFeature(myFixture.file.virtualFile))
+        assertTrue(CucumberJsTargets.isCucumberJsFeature(project, myFixture.file.virtualFile))
         assertEquals(myFixture.findFileInTempDir("repo").path, createFrom(elementAt("Scenario Outline:"))!!.workingDir)
     }
 
     fun testPackageJsonBesideBuildFileWins() {
         myFixture.addFileToProject("app/package.json", """{ "devDependencies": { "@cucumber/cucumber": "^13.3.0" } }""")
         myFixture.addFileToProject("app/pom.xml", "<project/>")
-        assertTrue(CucumberJsTargets.isCucumberJsFeature(myFixture.addFileToProject("app/a.feature", "Feature: A\n").virtualFile))
+        assertTrue(CucumberJsTargets.isCucumberJsFeature(project, myFixture.addFileToProject("app/a.feature", "Feature: A\n").virtualFile))
     }
 
     fun testPackageJsonWithoutCucumberDoesNotDecide() {
         myFixture.addFileToProject("app/pom.xml", "<project/>")
         myFixture.addFileToProject("app/web/package.json", """{ "devDependencies": { "mocha": "^10.0.0" } }""")
-        assertFalse(CucumberJsTargets.isCucumberJsFeature(myFixture.addFileToProject("app/web/a.feature", "Feature: A\n").virtualFile))
+        assertFalse(CucumberJsTargets.isCucumberJsFeature(project, myFixture.addFileToProject("app/web/a.feature", "Feature: A\n").virtualFile))
     }
 }

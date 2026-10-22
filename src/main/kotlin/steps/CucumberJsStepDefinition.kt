@@ -23,7 +23,7 @@ class CucumberJsStepDefinition(
      */
     override fun supportsStep(step: PsiElement): Boolean {
         val file = step.containingFile?.originalFile?.virtualFile ?: return true
-        return CucumberJsTargets.isCucumberJsFeature(file)
+        return CucumberJsTargets.isCucumberJsFeature(step.project, file)
     }
 
     override fun getVariableNames(): List<String> =

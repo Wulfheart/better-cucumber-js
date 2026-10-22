@@ -1,5 +1,6 @@
 package com.wulfindustries.plugins.steps
 
+import com.intellij.lang.javascript.JSLanguageDialect
 import com.intellij.lang.javascript.JavaScriptFileType
 import com.intellij.lang.javascript.TypeScriptFileType
 import com.intellij.lang.javascript.psi.JSArrayLiteralExpression
@@ -35,20 +36,23 @@ import org.jetbrains.plugins.cucumber.MapParameterTypeManager
 class CucumberJsSupportCode private constructor(
     val steps: List<CucumberJsStepDefinition>,
     val parameterTypes: MapParameterTypeManager,
+    /** The files with [steps], in path order. */
+    val files: Set<PsiFile>,
 ) {
-    val files: List<PsiFile>
-        get() = steps.mapNotNull { it.element?.containingFile }.distinct()
-
     companion object {
         private val STEP_FUNCTIONS = setOf("Given", "When", "Then", "defineStep")
         private const val DEFINE_PARAMETER_TYPE = "defineParameterType"
         private val KEY = Key.create<CachedValue<CucumberJsSupportCode>>("CucumberJsSupportCode")
 
-        /** Rescanned after every PSI change; empty while indexing, without caching that. */
+        /**
+         * Rescanned after a change to JS/TS PSI only, so editing feature files keeps it; empty while indexing,
+         * without caching that.
+         */
         fun of(project: Project): CucumberJsSupportCode {
-            if (DumbService.isDumb(project)) return CucumberJsSupportCode(emptyList(), MapParameterTypeManager.DEFAULT)
+            if (DumbService.isDumb(project)) return CucumberJsSupportCode(emptyList(), MapParameterTypeManager.DEFAULT, emptySet())
             return CachedValuesManager.getManager(project).getCachedValue(project, KEY, {
-                CachedValueProvider.Result.create(scan(project), PsiModificationTracker.MODIFICATION_COUNT)
+                val jsChanges = PsiModificationTracker.getInstance(project).forLanguages { it is JSLanguageDialect }
+                CachedValueProvider.Result.create(scan(project), jsChanges)
             }, false)
         }
 
@@ -82,7 +86,7 @@ class CucumberJsSupportCode private constructor(
 
             val steps = calls.filter { calleeName(it) in STEP_FUNCTIONS && stepPattern(it) != null }
                 .map { CucumberJsStepDefinition(it, parameterTypes) }
-            return CucumberJsSupportCode(steps, parameterTypes)
+            return CucumberJsSupportCode(steps, parameterTypes, steps.mapNotNullTo(LinkedHashSet()) { it.element?.containingFile })
         }
 
         /** `Given`, also when qualified as in `cucumber.Given`. */

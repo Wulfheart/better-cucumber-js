@@ -1,6 +1,9 @@
 package com.wulfindustries.plugins.steps
 
 import com.intellij.lang.annotation.HighlightSeverity
+import com.intellij.openapi.command.WriteCommandAction
+import com.intellij.openapi.fileEditor.FileDocumentManager
+import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.util.PsiTreeUtil
 import com.intellij.testFramework.fixtures.BasePlatformTestCase
 import org.jetbrains.plugins.cucumber.inspections.CucumberStepInspection
@@ -83,6 +86,28 @@ class CucumberJsStepNavigationTest : BasePlatformTestCase() {
         myFixture.configureFromExistingVirtualFile(feature.virtualFile)
         assertEquals(emptyList<String>(), definitionsOf(step("a calculator")))
         assertEmpty(CucumberJsExtension().getStepDefinitionContainers(myFixture.file as GherkinFile))
+    }
+
+    fun testNewStepFileIsPickedUp() {
+        assertUndefined("Given a step added later")
+        myFixture.addFileToProject("features/later.js", "const { Given } = require('@cucumber/cucumber')\nGiven('a step added later', function () {})\n")
+        assertResolvesTo("Given a step added later", "Given('a step added later'")
+    }
+
+    fun testRunnerFollowsPackageJsonEdits() {
+        myFixture.addFileToProject("other/pom.xml", "<project/>")
+        val packageJson = myFixture.addFileToProject("other/web/package.json", """{ "devDependencies": {} }""")
+        val feature = myFixture.addFileToProject("other/web/web.feature", "Feature: F\n  Scenario: S\n    Given a calculator\n")
+        myFixture.configureFromExistingVirtualFile(feature.virtualFile)
+        assertEquals(emptyList<String>(), definitionsOf(step("a calculator")))
+
+        WriteCommandAction.runWriteCommandAction(project) {
+            val document = PsiDocumentManager.getInstance(project).getDocument(packageJson)!!
+            document.setText("""{ "devDependencies": { "@cucumber/cucumber": "^13.3.0" } }""")
+            PsiDocumentManager.getInstance(project).commitDocument(document)
+            FileDocumentManager.getInstance().saveDocument(document)
+        }
+        assertEquals(listOf("Given('a calculator'"), definitionsOf(step("a calculator")))
     }
 
     fun testOnlyUndefinedStepsAreReported() {

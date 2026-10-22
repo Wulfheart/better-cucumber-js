@@ -44,6 +44,6 @@ class CucumberJsRunLineMarkerContributor : RunLineMarkerContributor(), DumbAware
             else -> false
         }
         if (!isRunnableLeaf) return null
-        return CucumberJsTargets.find(parent)?.takeIf { CucumberJsTargets.isCucumberJsFeature(it.file) }
+        return CucumberJsTargets.find(parent)?.takeIf { CucumberJsTargets.isCucumberJsFeature(leaf.project, it.file) }
     }
 }

@@ -2,13 +2,19 @@ package com.wulfindustries.plugins.run
 
 import com.intellij.openapi.project.DumbService
 import com.intellij.openapi.project.Project
+import com.intellij.openapi.util.Key
 import com.intellij.openapi.vfs.VfsUtilCore
 import com.intellij.openapi.vfs.VirtualFile
+import com.intellij.openapi.vfs.VirtualFileManager
 import com.intellij.psi.PsiDocumentManager
 import com.intellij.psi.PsiElement
 import com.intellij.psi.search.FileTypeIndex
 import com.intellij.psi.search.GlobalSearchScope
 import com.intellij.psi.search.GlobalSearchScopesCore
+import com.intellij.psi.util.CachedValue
+import com.intellij.psi.util.CachedValueProvider
+import com.intellij.psi.util.CachedValuesManager
+import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
 import org.jetbrains.plugins.cucumber.psi.GherkinExamplesBlock
 import org.jetbrains.plugins.cucumber.psi.GherkinFeature
@@ -19,6 +25,7 @@ import org.jetbrains.plugins.cucumber.psi.GherkinScenarioOutline
 import org.jetbrains.plugins.cucumber.psi.GherkinStepsHolder
 import org.jetbrains.plugins.cucumber.psi.GherkinTableRow
 import org.jetbrains.plugins.cucumber.psi.GherkinTokenTypes
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * What a gutter icon or context action runs: a whole feature file ([line] is `null`),
@@ -38,6 +45,7 @@ object CucumberJsTargets {
     private const val CUCUMBER_PACKAGE = "node_modules/@cucumber/cucumber"
     private const val CUCUMBER_DEPENDENCY = "\"@cucumber/cucumber\""
     private val JVM_BUILD_FILES = listOf("pom.xml", "build.gradle", "build.gradle.kts")
+    private val RUNNER_BY_DIR = Key.create<CachedValue<ConcurrentHashMap<VirtualFile, Boolean>>>("CucumberJsTargets.runnerByDir")
 
     /** Resolves the innermost runnable target that contains [element], or `null` outside a `.feature` file. */
     fun find(element: PsiElement): CucumberJsTarget? {
@@ -80,18 +88,33 @@ object CucumberJsTargets {
      * Walking up from it, the first of these decides: a `package.json` that declares `@cucumber/cucumber` or a
      * `node_modules/@cucumber/cucumber` install makes it ours, a JVM build file makes it not (e.g. `java/pom.xml`
      * below a workspace root that hoists `node_modules`). With none of them it's ours, as nothing claims it otherwise.
-     * Uses only the VFS, so it also works while indexing.
+     * Uses only the VFS, so it also works while indexing. Gherkin asks this through
+     * [com.wulfindustries.plugins.steps.CucumberJsStepDefinition.supportsStep] for every step × step definition, so the
+     * answer is cached per directory until files are added or removed or the PSI changes (e.g. a `package.json` edit).
      */
-    fun isCucumberJsFeature(file: VirtualFile): Boolean {
-        var dir = file.parent
-        while (dir != null) {
-            val current: VirtualFile = dir
-            if (declaresCucumber(current.findChild("package.json"))) return true
-            if (JVM_BUILD_FILES.any { current.findChild(it) != null }) return false
-            if (current.findFileByRelativePath(CUCUMBER_PACKAGE)?.isDirectory == true) return true
-            dir = current.parent
-        }
-        return true
+    fun isCucumberJsFeature(project: Project, file: VirtualFile): Boolean {
+        val dir = file.parent ?: return true
+        val cache = CachedValuesManager.getManager(project).getCachedValue(project, RUNNER_BY_DIR, {
+            CachedValueProvider.Result.create(
+                ConcurrentHashMap<VirtualFile, Boolean>(),
+                VirtualFileManager.VFS_STRUCTURE_MODIFICATIONS,
+                PsiModificationTracker.MODIFICATION_COUNT,
+            )
+        }, false)
+        return isCucumberJsDir(dir, cache)
+    }
+
+    /** The decision for feature files in [dir], remembered for every directory on the way up. */
+    private fun isCucumberJsDir(dir: VirtualFile, cache: MutableMap<VirtualFile, Boolean>): Boolean =
+        cache[dir] ?: (ownDecision(dir) ?: dir.parent?.let { isCucumberJsDir(it, cache) } ?: true)
+            .also { cache[dir] = it }
+
+    /** What [dir] alone says: `true` for Cucumber.js, `false` for a JVM build, `null` when it doesn't decide. */
+    private fun ownDecision(dir: VirtualFile): Boolean? = when {
+        declaresCucumber(dir.findChild("package.json")) -> true
+        JVM_BUILD_FILES.any { dir.findChild(it) != null } -> false
+        dir.findFileByRelativePath(CUCUMBER_PACKAGE)?.isDirectory == true -> true
+        else -> null
     }
 
     private fun declaresCucumber(packageJson: VirtualFile?): Boolean =

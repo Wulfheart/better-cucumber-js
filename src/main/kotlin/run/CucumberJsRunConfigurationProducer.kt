@@ -26,7 +26,7 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
             return true
         }
         val target = context.psiLocation?.let(CucumberJsTargets::find) ?: return false
-        if (!CucumberJsTargets.isCucumberJsFeature(target.file)) return false
+        if (!CucumberJsTargets.isCucumberJsFeature(context.project, target.file)) return false
         if (!setupLocation(configuration, target.file)) return false
         configuration.line = target.line
         configuration.scenarioPath = if (target.isFeature) null else ScenarioPath.of(target.element)
@@ -53,7 +53,7 @@ class CucumberJsRunConfigurationProducer : LazyRunConfigurationProducer<Cucumber
             return configuration.line == null && FileUtil.pathsEqual(configuration.featurePath, dir.virtualFile.path)
         }
         val target = context.psiLocation?.let(CucumberJsTargets::find) ?: return false
-        if (!CucumberJsTargets.isCucumberJsFeature(target.file)) return false
+        if (!CucumberJsTargets.isCucumberJsFeature(context.project, target.file)) return false
         if (!FileUtil.pathsEqual(configuration.featurePath, target.file.path)) return false
         // By name where possible: the line is stale once lines above the scenario were added or removed
         val path = configuration.scenarioPath

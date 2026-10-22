@@ -46,7 +46,7 @@ class CucumberJsExtension : AbstractCucumberExtension() {
     /** Files not on disk yet (e.g. in-memory copies) count as ours. */
     private fun isOurs(featureFile: GherkinFile): Boolean {
         val file = featureFile.originalFile.virtualFile ?: return true
-        return CucumberJsTargets.isCucumberJsFeature(file)
+        return CucumberJsTargets.isCucumberJsFeature(featureFile.project, file)
     }
 
     /** cucumber-js has always parsed Gherkin 6 (`Rule`, `Example`). */
