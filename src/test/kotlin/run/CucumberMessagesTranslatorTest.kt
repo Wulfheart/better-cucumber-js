@@ -143,19 +143,53 @@ class CucumberMessagesTranslatorTest {
     }
 
     @Test
-    fun countsScenariosAndExampleRows() {
-        assertEquals(ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 2, failed = 2, done = true),
-            scenarioCounts(lines("full-run.ndjson")))
-        assertEquals(ScenarioCounts.Snapshot(total = 1, finished = 1, passed = 0, failed = 1, done = true),
-            scenarioCounts(lines("single-example.ndjson")))
+    fun countsScenariosAndPickles() {
+        // The outline is one scenario with two pickles, and failed with its second row
+        assertEquals(
+            ScenarioCounts.Snapshot(
+                scenarios = ScenarioCounts.Tally(total = 4, started = 4, finished = 4, passed = 1, failed = 2),
+                pickles = ScenarioCounts.Tally(total = 5, started = 5, finished = 5, passed = 2, failed = 2),
+                done = true,
+            ),
+            scenarioCounts(lines("full-run.ndjson")),
+        )
+        val one = ScenarioCounts.Tally(total = 1, started = 1, finished = 1, failed = 1)
+        assertEquals(ScenarioCounts.Snapshot(one, one, done = true), scenarioCounts(lines("single-example.ndjson")))
     }
 
     @Test
     fun retriedScenarioCountsOnceWithItsLastAttempt() {
-        assertEquals(ScenarioCounts.Snapshot(total = 1, finished = 1, passed = 0, failed = 1, done = true),
-            scenarioCounts(lines("retry.ndjson")))
-        assertEquals(ScenarioCounts.Snapshot(total = 1, finished = 1, passed = 1, failed = 0, done = true),
-            scenarioCounts(lines("flaky-retry.ndjson")))
+        val failed = ScenarioCounts.Tally(total = 1, started = 1, finished = 1, failed = 1)
+        assertEquals(ScenarioCounts.Snapshot(failed, failed, done = true), scenarioCounts(lines("retry.ndjson")))
+        val passed = ScenarioCounts.Tally(total = 1, started = 1, finished = 1, passed = 1)
+        assertEquals(ScenarioCounts.Snapshot(passed, passed, done = true), scenarioCounts(lines("flaky-retry.ndjson")))
+    }
+
+    @Test
+    fun runningScenarioIsStartedButNotFinished() {
+        val all = lines("full-run.ndjson")
+        val firstStarted = all.indexOfFirst { it.startsWith("""{"testCaseStarted"""") }
+        val counts = scenarioCounts(all.take(firstStarted + 1))
+        assertEquals(1, counts.scenarios.running)
+        assertEquals(1, counts.pickles.running)
+        assertEquals("Scenarios: 1 of 4 · Pickles: 1 of 5 · 5 left", counts.text())
+    }
+
+    @Test
+    fun outlineFinishesWithItsLastPickle() {
+        val counts = ScenarioCounts()
+        counts.start(listOf("plain", "outline", "outline", "outline"))
+        counts.started("plain")
+        counts.finished("plain", failed = false, passed = true)
+        counts.started("outline")
+        counts.finished("outline", failed = true, passed = false)
+        counts.started("outline")
+        assertEquals("Scenarios: 2 of 2 · Pickles: 3 of 4 · 2 left", counts.snapshot.text())
+        counts.finished("outline", failed = false, passed = true)
+        counts.started("outline")
+        counts.finished("outline", failed = false, passed = true)
+        counts.runFinished()
+        assertEquals("Scenarios failed: 1, passed: 1 of 2 · Pickles failed: 1, passed: 3 of 4", counts.snapshot.text())
     }
 
     @Test
@@ -163,21 +197,36 @@ class CucumberMessagesTranslatorTest {
         val all = lines("full-run.ndjson")
         val firstFinished = all.indexOfFirst { it.startsWith("""{"testCaseFinished"""") }
         val counts = scenarioCounts(all.take(firstFinished + 1) + all.last { it.startsWith("""{"testRunFinished"""") })
-        assertEquals(ScenarioCounts.Snapshot(total = 5, finished = 1, passed = 1, failed = 0, done = true), counts)
-        assertEquals(4, counts.ignored)
+        assertEquals(
+            ScenarioCounts.Snapshot(
+                scenarios = ScenarioCounts.Tally(total = 4, started = 1, finished = 1, passed = 1),
+                pickles = ScenarioCounts.Tally(total = 5, started = 1, finished = 1, passed = 1),
+                done = true,
+            ),
+            counts,
+        )
+        assertEquals(3, counts.scenarios.ignored)
+        assertEquals(4, counts.pickles.ignored)
     }
 
     @Test
     fun scenarioCountText() {
-        // The scenario that is running is counted
-        assertEquals("Scenarios: 2 of 5", ScenarioCounts.Snapshot(total = 5, finished = 1, passed = 1).text())
-        assertEquals("Scenarios: 5 of 5", ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 5).text())
-        assertEquals("Scenarios failed: 1, passed: 3, ignored: 1 of 5 scenarios",
-            ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 3, failed = 1, done = true).text())
-        assertEquals("Scenarios passed: 5 of 5 scenarios",
-            ScenarioCounts.Snapshot(total = 5, finished = 5, passed = 5, done = true).text())
-        assertEquals("Scenarios failed: 1 of 1 scenario",
-            ScenarioCounts.Snapshot(total = 1, finished = 1, failed = 1, done = true).text())
+        fun tally(total: Int, started: Int = 0, finished: Int = 0, passed: Int = 0, failed: Int = 0) =
+            ScenarioCounts.Tally(total, started, finished, passed, failed)
+        // Running ones are counted, and still left
+        assertEquals("Scenarios: 4 of 4 · Pickles: 4 of 7 · 4 left",
+            ScenarioCounts.Snapshot(tally(4, started = 4, finished = 3), tally(7, started = 4, finished = 3)).text())
+        assertEquals("Scenarios: 2 of 5 · Pickles: 2 of 5 · 3 left",
+            ScenarioCounts.Snapshot(tally(5, started = 2, finished = 2), tally(5, started = 2, finished = 2)).text())
+        // --parallel runs several at once
+        assertEquals("Scenarios: 4 of 5 · Pickles: 4 of 5 · 4 left",
+            ScenarioCounts.Snapshot(tally(5, started = 4, finished = 1), tally(5, started = 4, finished = 1)).text())
+        assertEquals("Scenarios: 5 of 5 · Pickles: 5 of 5",
+            ScenarioCounts.Snapshot(tally(5, 5, 5), tally(5, 5, 5)).text())
+        assertEquals("Scenarios failed: 1, passed: 3 of 4 · Pickles failed: 1, passed: 6 of 7",
+            ScenarioCounts.Snapshot(tally(4, 4, 4, passed = 3, failed = 1), tally(7, 7, 7, passed = 6, failed = 1), done = true).text())
+        assertEquals("Scenarios passed: 3, ignored: 1 of 4 · Pickles passed: 3, ignored: 4 of 7",
+            ScenarioCounts.Snapshot(tally(4, 3, 3, passed = 3), tally(7, 3, 3, passed = 3), done = true).text())
     }
 
     @Test

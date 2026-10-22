@@ -11,7 +11,7 @@
 - In projects that also use Cucumber for Java, every feature file belongs to one runner, decided by where it sits: below a `package.json` that declares `@cucumber/cucumber` it runs with Cucumber.js from the gutter, below a `pom.xml` or `build.gradle` it is left to Cucumber for Java, and its steps only resolve to that runner's step definitions
 - The test runner shows the whole run up front, with pending tests, as Feature > Rule > Scenario (or Scenario Outline > Examples > example row) > Background > steps
 - Clicking a step under an example row in the test runner jumps to that row
-- The test runner's status line also counts scenarios (each example row is one): the scenario that is running while the run goes on, then how many failed, passed and were ignored
+- The test runner's status line also counts scenarios (a Scenario Outline once) and pickles (each example row is one): how far the run has got and how many pickles are left while it goes on, then how many failed, passed and were ignored
 - Step output, `this.log` messages and attachments appear under their step in the test runner
 - Failing hooks show up as their own nodes, and each `--retry` attempt gets its own node; a scenario that passes on a retry is shown as passed
 - Ctrl+click (Go to Declaration) on a step jumps to its JavaScript or TypeScript step definition, with a chooser for ambiguous steps; Cucumber expressions, custom parameter types and regexes are supported

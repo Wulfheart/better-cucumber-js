@@ -48,11 +48,13 @@ class CucumberMessagesTranslator(private val baseDir: Path, private val scenario
     /** Step nodes of one attempt, keyed by test step id, plus the Background suite they may live in. */
     private class StepNodes(val byTestStepId: MutableMap<String, Node>, val background: Node?)
 
-    private class CaseTree(val caseNode: Node, val firstAttempt: StepNodes)
+    /** [scenarioKey] is shared by the rows of an outline. */
+    private class CaseTree(val caseNode: Node, val firstAttempt: StepNodes, val scenarioKey: String)
 
     private class Failure(val node: Node, val message: String, val details: String?, val durationMillis: Long)
 
-    private class Attempt(val testCase: TestCase, val caseNode: Node, val container: Node, val steps: StepNodes) {
+    private class Attempt(val testCase: TestCase, val tree: CaseTree, val container: Node, val steps: StepNodes) {
+        val caseNode get() = tree.caseNode
         /** Suites that end with this attempt, innermost first. */
         val ownedSuites = listOfNotNull(steps.background, container.takeIf { it !== caseNode })
         val failures = mutableListOf<Failure>()
@@ -158,11 +160,12 @@ class CucumberMessagesTranslator(private val baseDir: Path, private val scenario
         for (testCase in testCases.values) {
             val pickle = pickles[testCase.pickleId] ?: continue
             val caseNode = caseNode(testCase.pickleId, pickle, out)
-            caseTrees[testCase.id] = CaseTree(caseNode, addSteps(caseNode, testCase, pickle, out))
+            val scenarioKey = pickle.astNodeIds.firstOrNull() ?: "pickle:${testCase.pickleId}"
+            caseTrees[testCase.id] = CaseTree(caseNode, addSteps(caseNode, testCase, pickle, out), scenarioKey)
         }
         val stepCount = caseTrees.values.sumOf { it.firstAttempt.byTestStepId.size }
         out += ServiceMessageBuilder("testCount").addAttribute("count", stepCount.toString())
-        scenarios.start(caseTrees.size)
+        scenarios.start(caseTrees.values.map { it.scenarioKey })
     }
 
     /** The suite of a scenario or example row, with its feature, rule, outline and Examples suites. */
@@ -273,11 +276,12 @@ class CucumberMessagesTranslator(private val baseDir: Path, private val scenario
         val attemptNumber = started.get("attempt")?.asInt ?: 0
         attempts[id] = if (attemptNumber == 0) {
             start(tree.caseNode, out)
-            Attempt(testCase, tree.caseNode, tree.caseNode, tree.firstAttempt)
+            scenarios.started(tree.scenarioKey)
+            Attempt(testCase, tree, tree.caseNode, tree.firstAttempt)
         } else {
             val name = MyMessageBundle.message("test.tree.attempt", attemptNumber + 1)
             val container = register(null, tree.caseNode, name, true, null, false, out, running = true)
-            Attempt(testCase, tree.caseNode, container, addSteps(container, testCase, pickle, out))
+            Attempt(testCase, tree, container, addSteps(container, testCase, pickle, out))
         }
     }
 
@@ -372,7 +376,7 @@ class CucumberMessagesTranslator(private val baseDir: Path, private val scenario
         attempt.ownedSuites.forEach { finishSuite(it, out) }
         if (!willBeRetried) {
             finishSuite(attempt.caseNode, out)
-            scenarios.finished(failed = attempt.failures.isNotEmpty(), passed = attempt.allPassed)
+            scenarios.finished(attempt.tree.scenarioKey, failed = attempt.failures.isNotEmpty(), passed = attempt.allPassed)
         }
     }
 

@@ -8,6 +8,7 @@ import com.intellij.openapi.application.ApplicationManager
 import com.intellij.openapi.application.ModalityState
 import com.intellij.ui.components.JBLabel
 import com.intellij.util.ui.JBUI
+import com.wulfindustries.plugins.MyMessageBundle
 import java.awt.BorderLayout
 
 /**
@@ -18,6 +19,7 @@ object ScenarioCountLabel {
     fun install(statusLine: TestStatusLine, counts: ScenarioCounts, processHandler: ProcessHandler) {
         val label = JBLabel().apply {
             border = JBUI.Borders.emptyLeft(12)
+            toolTipText = MyMessageBundle.message("test.status.pickles.tooltip")
             isVisible = false
         }
         statusLine.add(label, BorderLayout.CENTER)
@@ -25,7 +27,7 @@ object ScenarioCountLabel {
             ApplicationManager.getApplication().invokeLater({
                 val snapshot = counts.snapshot
                 label.text = snapshot.text()
-                label.isVisible = snapshot.total > 0
+                label.isVisible = snapshot.pickles.total > 0
             }, ModalityState.any())
         }
         // A stopped run never reports testRunFinished
