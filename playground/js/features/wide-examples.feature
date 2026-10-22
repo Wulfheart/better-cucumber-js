@@ -53,3 +53,19 @@ Feature: Wide Examples tables
       | id   | customer     | product  | quantity | status   | note             |
       | 2001 | Ada Lovelace | Keyboard | 1        | refunded | Das ist ein Test |
       | 2002 | Alan Turing  | Webcam   | 3        | open     | wrong model      |
+
+  Scenario Outline: Ship order <id>
+    Given the step logs the table:
+      | id   | customer   | email   | address                                         | product   | quantity | payment   |
+      | <id> | <customer> | <email> | 12 Long Street, Apartment 42, 10115 Berlin, DE   | <product> | 1        | card      |
+      | 9999 | Someone    | someone@example.com | none                                | Webcam    | 2        | invoice   |
+    And the step logs the table:
+      | customer | <customer>                                                          |
+      | email    | <email>                                                             |
+      | note     | leave at the door, ring twice and wait for at least two minutes     |
+    Then a passing step
+
+    Examples:
+      | id   | customer          | email                         | product  |
+      | 3001 | Grace Hopper      | grace.hopper@example.com      | Monitor  |
+      | 3002 | Margaret Hamilton | margaret.hamilton@example.com | USB-C hub |

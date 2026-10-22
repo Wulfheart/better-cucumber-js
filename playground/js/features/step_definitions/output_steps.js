@@ -36,6 +36,10 @@ Given('the step logs {string}', function (text) {
   this.log(text)
 })
 
+Given('the step logs the table:', function (table) {
+  this.log(JSON.stringify(table.raw()))
+})
+
 Given('the step attaches a text document', function () {
   this.attach('A plain text attachment\nwith two lines', 'text/plain')
 })

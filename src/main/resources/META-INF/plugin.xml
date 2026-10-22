@@ -43,6 +43,7 @@
 
         <annotator language="Gherkin" implementationClass="com.wulfindustries.plugins.tables.RainbowColumnsAnnotator"/>
         <editorFactoryListener implementation="com.wulfindustries.plugins.tables.CurrentColumnHighlighter"/>
+        <daemon.highlightInfoFilter implementation="com.wulfindustries.plugins.tables.ExpandedScenarioHighlightFilter"/>
         <breadcrumbsInfoProvider implementation="com.wulfindustries.plugins.tables.GherkinBreadcrumbsProvider"/>
         <colorSettingsPage implementation="com.wulfindustries.plugins.tables.TableColorSettingsPage"/>
         <additionalTextAttributes scheme="Default" file="colorSchemes/CucumberJsTablesDefault.xml"/>

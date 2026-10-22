@@ -115,7 +115,9 @@ class ExampleRowSelection(private val project: Project) : Disposable {
 
     private fun follow(editor: Editor) {
         if (editor.project != project) return
-        if (FileDocumentManager.getInstance().getFile(editor.document)?.fileType != GherkinFileType.INSTANCE) return
+        val file = FileDocumentManager.getInstance().getFile(editor.document) ?: return
+        // The Scenario tab is a feature file too; its caret is never in the row it shows
+        if (file.fileType != GherkinFileType.INSTANCE || ExpandedScenarioPanel.isScenarioFile(file)) return
         caretEditor = editor
         schedule()
     }

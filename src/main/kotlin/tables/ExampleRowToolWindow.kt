@@ -64,7 +64,8 @@ class ExampleRowToolWindowFactory : ToolWindowFactory, DumbAware {
         val contents = ContentFactory.getInstance()
         val values = ExampleValuesPanel(project, selection)
         val scenario = ExpandedScenarioPanel(project, selection)
-        for ((panel, name) in listOf(values to "tables.tool.window.tab.values", scenario to "tables.tool.window.tab.scenario")) {
+        // The first tab is selected when the tool window opens
+        for ((panel, name) in listOf(scenario to "tables.tool.window.tab.scenario", values to "tables.tool.window.tab.values")) {
             val content = contents.createContent(panel, MyMessageBundle.message(name), false)
             content.setDisposer(panel)
             toolWindow.contentManager.addContent(content)

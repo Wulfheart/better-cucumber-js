@@ -16,6 +16,7 @@ import com.intellij.psi.util.CachedValueProvider
 import com.intellij.psi.util.CachedValuesManager
 import com.intellij.psi.util.PsiModificationTracker
 import com.intellij.psi.util.PsiTreeUtil
+import com.intellij.testFramework.LightVirtualFile
 import org.jetbrains.plugins.cucumber.psi.GherkinExamplesBlock
 import org.jetbrains.plugins.cucumber.psi.GherkinFeature
 import org.jetbrains.plugins.cucumber.psi.GherkinFile
@@ -91,9 +92,11 @@ object CucumberJsTargets {
      * Uses only the VFS, so it also works while indexing. Gherkin asks this through
      * [com.wulfindustries.plugins.steps.CucumberJsStepDefinition.supportsStep] for every step × step definition, so the
      * answer is cached per directory until files are added or removed or the PSI changes (e.g. a `package.json` edit).
+     * An in-memory file with an [LightVirtualFile.getOriginalFile] (e.g. the Example Row tool window's Scenario tab) is
+     * judged by that file.
      */
     fun isCucumberJsFeature(project: Project, file: VirtualFile): Boolean {
-        val dir = file.parent ?: return true
+        val dir = ((file as? LightVirtualFile)?.originalFile ?: file).parent ?: return true
         val cache = CachedValuesManager.getManager(project).getCachedValue(project, RUNNER_BY_DIR, {
             CachedValueProvider.Result.create(
                 ConcurrentHashMap<VirtualFile, Boolean>(),
