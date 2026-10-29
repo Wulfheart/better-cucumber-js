@@ -66,10 +66,11 @@ class CucumberJsRunProfileState(
         ScenarioCountLabel.install(console.resultsViewer.statusLine, properties.scenarioCounts, processHandler)
         // The platform leaves creating it to us. Before attaching, so it sees the first scenario start
         val rerunFailedTests = properties.createRerunFailedTestsAction(console)
+        val rerunInOtherMode = CucumberJsRerunInOtherModeAction.create(environment, configuration)
         ProcessTerminatedListener.attach(processHandler)
         console.attachToProcess(processHandler)
         return DefaultExecutionResult(console, processHandler).apply {
-            rerunFailedTests?.let { setRestartActions(it) }
+            setRestartActions(*listOfNotNull(rerunFailedTests, rerunInOtherMode).toTypedArray())
         }
     }
 }
