@@ -38,6 +38,7 @@
     <extensions defaultExtensionNs="com.intellij">
         <configurationType implementation="com.wulfindustries.plugins.run.CucumberJsConfigurationType"/>
         <runConfigurationProducer implementation="com.wulfindustries.plugins.run.CucumberJsRunConfigurationProducer"/>
+        <pathMacroFilter implementation="com.wulfindustries.plugins.run.ScenarioPathMacroFilter"/>
         <runLineMarkerContributor language="Gherkin"
                                   implementationClass="com.wulfindustries.plugins.run.CucumberJsRunLineMarkerContributor"/>
 

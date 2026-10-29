@@ -106,7 +106,8 @@ data class ScenarioPath(
     }
 
     companion object {
-        private const val SCENARIO = "scenario"
+        /** Name of the element [writeTo] adds. */
+        const val SCENARIO = "scenario"
         private const val NAME = "name"
         private const val RULE = "rule"
         private const val OCCURRENCE = "occurrence"

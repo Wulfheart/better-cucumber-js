@@ -95,3 +95,13 @@ Feature: Scenario Outlines
       | n | note                                                                  |
       | 7 | this row is long enough that its joined cell values exceed sixty chars |
       | 8 | short                                                                 |
+
+  Scenario Outline: Values that look like IDE path variables
+    Given the number <n>
+    When I add them
+    Then the result is <n>
+
+    Examples:
+      | n | note     |
+      | 1 | $ignore$ |
+      | 2 | $ignore$ |
