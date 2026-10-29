@@ -1,6 +1,8 @@
 package com.wulfindustries.plugins.tables
 
 import com.intellij.openapi.Disposable
+import com.intellij.openapi.application.ApplicationManager
+import com.intellij.openapi.application.ModalityState
 import com.intellij.openapi.application.WriteAction
 import com.intellij.openapi.application.runReadActionBlocking
 import com.intellij.openapi.editor.EditorCustomElementRenderer
@@ -75,7 +77,11 @@ internal class ExpandedScenarioPanel(private val project: Project, private val s
         // Tables flip or unflip when the viewer gets narrower or wider than them
         editor.component.addComponentListener(object : ComponentAdapter() {
             override fun componentResized(e: ComponentEvent) {
-                if (visibleColumns() != columns) refresh()
+                // Later, since a resize event isn't write-safe and refresh commits the document
+                ApplicationManager.getApplication().invokeLater(
+                    { if (visibleColumns() != columns) refresh() },
+                    ModalityState.stateForComponent(editor.component),
+                ) { editor.isDisposed }
             }
         })
         refresh()
